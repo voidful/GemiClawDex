@@ -1,0 +1,8 @@
+description = "Review a file or directory with repo instructions and reusable skills"
+model = "openai-codex"
+prompt = """Load the repository instructions, inspect @{README.md}, and review {{args}}.
+
+Focus on correctness risks, regressions, missing tests, and hidden integration issues.
+
+If useful, stage a repo-status check through !{git status --short}.
+"""

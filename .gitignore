@@ -1,0 +1,35 @@
+# Rust build artifacts
+/target/
+**/target/
+
+# Cargo lock (library crates)
+# Cargo.lock  # keep for binary crate
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+
+# Logs
+*.log
+
+# Backup files
+*.rs.bk
+*.orig
+
+# Coverage and profiling
+*.profraw
+*.profdata
+lcov.info
+tarpaulin-report.html

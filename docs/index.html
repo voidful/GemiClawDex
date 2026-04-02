@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GemiClawdex 深度解析 | Harness Engineering 完全指南</title>
+    <meta name="description" content="以書籍形式完整走過 GemiClawdex 原始碼，從零開始理解 Rust 原生 AI Coding Agent 的 Harness Engineering。">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background effects -->
+    <div class="bg-grid"></div>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <!-- Mobile menu toggle -->
+    <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+    </button>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-icon">&#x1F980;</span>
+                <div class="logo-text">
+                    <span class="logo-title">GemiClawdex</span>
+                    <span class="logo-sub">Harness Engineering Guide</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-search">
+            <input type="text" id="searchInput" placeholder="搜尋章節..." autocomplete="off">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <div class="nav-group">
+                <div class="nav-group-title">導覽</div>
+                <a href="#home" class="nav-item active" data-chapter="home">
+                    <span class="nav-icon">&#x1F3E0;</span>首頁
+                </a>
+                <a href="#intro" class="nav-item" data-chapter="intro">
+                    <span class="nav-icon">&#x1F4D6;</span>前言：什麼是 Harness Engineering
+                </a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">第一部分：基礎架構</div>
+                <a href="#ch1" class="nav-item" data-chapter="ch1">
+                    <span class="nav-icon">01</span>專案概觀與設計哲學
+                </a>
+                <a href="#ch2" class="nav-item" data-chapter="ch2">
+                    <span class="nav-icon">02</span>技術棧與專案結構
+                </a>
+                <a href="#ch3" class="nav-item" data-chapter="ch3">
+                    <span class="nav-icon">03</span>工作區發現機制
+                </a>
+                <a href="#ch4" class="nav-item" data-chapter="ch4">
+                    <span class="nav-icon">04</span>組態管理與路徑系統
+                </a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">第二部分：安全與信任</div>
+                <a href="#ch5" class="nav-item" data-chapter="ch5">
+                    <span class="nav-icon">05</span>信任模型 (Trust System)
+                </a>
+                <a href="#ch6" class="nav-item" data-chapter="ch6">
+                    <span class="nav-icon">06</span>沙箱策略 (Sandbox Policy)
+                </a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">第三部分：供應商引擎</div>
+                <a href="#ch7" class="nav-item" data-chapter="ch7">
+                    <span class="nav-icon">07</span>多供應商系統
+                </a>
+                <a href="#ch8" class="nav-item" data-chapter="ch8">
+                    <span class="nav-icon">08</span>供應商設定檔格式
+                </a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">第四部分：提示詞工程</div>
+                <a href="#ch9" class="nav-item" data-chapter="ch9">
+                    <span class="nav-icon">09</span>指令載入器
+                </a>
+                <a href="#ch10" class="nav-item" data-chapter="ch10">
+                    <span class="nav-icon">10</span>命令目錄系統
+                </a>
+                <a href="#ch11" class="nav-item" data-chapter="ch11">
+                    <span class="nav-icon">11</span>技能系統 (Skills)
+                </a>
+                <a href="#ch12" class="nav-item" data-chapter="ch12">
+                    <span class="nav-icon">12</span>提示詞組裝引擎
+                </a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">第五部分：核心執行</div>
+                <a href="#ch13" class="nav-item" data-chapter="ch13">
+                    <span class="nav-icon">13</span>Agent 迴圈
+                </a>
+                <a href="#ch14" class="nav-item" data-chapter="ch14">
+                    <span class="nav-icon">14</span>工具系統 (Tool System)
+                </a>
+                <a href="#ch15" class="nav-item" data-chapter="ch15">
+                    <span class="nav-icon">15</span>會話持久化
+                </a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">第六部分：介面與輸出</div>
+                <a href="#ch16" class="nav-item" data-chapter="ch16">
+                    <span class="nav-icon">16</span>CLI 介面設計
+                </a>
+                <a href="#ch17" class="nav-item" data-chapter="ch17">
+                    <span class="nav-icon">17</span>輸出渲染系統
+                </a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">第七部分：綜合</div>
+                <a href="#ch18" class="nav-item" data-chapter="ch18">
+                    <span class="nav-icon">18</span>14 步執行管線全景
+                </a>
+                <a href="#ch19" class="nav-item" data-chapter="ch19">
+                    <span class="nav-icon">19</span>Harness Engineering 原理總結
+                </a>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="reading-progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <span class="progress-text" id="progressText">0 / 19 章</span>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+
+        <!-- ==================== HOME ==================== -->
+        <section id="home" class="chapter active">
+            <div class="hero">
+                <div class="hero-badge">Rust-Native AI Coding Agent</div>
+                <h1 class="hero-title">
+                    <span class="gradient-text">GemiClawdex</span><br>
+                    <span class="hero-subtitle-text">深度原始碼解析</span>
+                </h1>
+                <p class="hero-desc">
+                    融合 <strong>Gemini CLI</strong>、<strong>OpenAI Codex</strong> 與 <strong>Claude Code</strong> 三大 AI 編碼代理的設計精髓，<br>
+                    以 Rust 從零打造的高效能終端 AI 編碼代理。<br>
+                    本書將帶你逐行走過 <strong>~4,500 行 Rust 原始碼</strong>，理解最前沿的 Harness Engineering。
+                </p>
+                <div class="hero-actions">
+                    <a href="#intro" class="btn btn-primary" onclick="navigateTo('intro')">開始閱讀</a>
+                    <a href="#ch13" class="btn btn-outline" onclick="navigateTo('ch13')">直接看 Agent Loop</a>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">4,500+</div>
+                        <div class="stat-label">行 Rust 原始碼</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">14</div>
+                        <div class="stat-label">核心模組</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">3</div>
+                        <div class="stat-label">LLM 供應商</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">5</div>
+                        <div class="stat-label">內建工具</div>
+                    </div>
+                </div>
+
+                <div class="code-window">
+                    <div class="window-header">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                        <span class="window-title">~/GemiClawdex</span>
+                    </div>
+                    <div class="window-body">
+<pre><code class="language-bash"><span class="token comment"># 編譯 GemiClawdex</span>
+$ cargo build --release
+
+<span class="token comment"># 啟動互動式 REPL</span>
+$ ./target/release/gcd
+
+<span class="token comment"># 執行單次編碼任務</span>
+$ gcd exec <span class="token string">"解釋這個 codebase 的架構"</span>
+
+<span class="token comment"># 指定供應商並附加技能</span>
+$ gcd exec --provider gemini-official --skill code-review <span class="token string">"審查 src/main.rs"</span></code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== INTRO ==================== -->
+        <section id="intro" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">前言</span>
+                <h1>什麼是 Harness Engineering？</h1>
+                <p class="chapter-desc">在 AI 程式代理（Coding Agent）的世界中，模型本身只是引擎。真正決定代理品質的，是圍繞模型建構的「韁繩」（Harness）。</p>
+            </div>
+
+            <div class="content-body">
+                <h2>AI Coding Agent 的核心挑戰</h2>
+                <p>當我們說「AI 寫程式」時，大多數人想像的是一個 LLM 模型接收提示、吐出程式碼。但在實際的生產級代理中，<strong>模型只佔整個系統的一小部分</strong>。真正困難且關鍵的工程在於：</p>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">Harness Engineering 的定義</div>
+                    <p><strong>Harness Engineering</strong>（韁繩工程）指的是圍繞 LLM 模型建構的一切工程基礎設施：提示詞組裝、上下文管理、工具呼叫、安全沙箱、信任邊界、會話持久化等。它是讓一個「能說話的模型」變成「能做事的代理」的全部工程。</p>
+                </div>
+
+                <h2>三大設計傳承</h2>
+                <p>GemiClawdex 刻意融合了三大主流 AI 編碼代理的設計精華：</p>
+
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>來源</th>
+                                <th>採納特性</th>
+                                <th>對應模組</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Gemini CLI</strong></td>
+                                <td>REPL 互動、工具系統、GEMINI.md 上下文</td>
+                                <td><code>tools.rs</code>、<code>instructions.rs</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>OpenAI Codex</strong></td>
+                                <td>Sandbox 分級、AGENTS.md 指令、agent 工作流</td>
+                                <td><code>config.rs</code>、<code>agent.rs</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Claude Code</strong></td>
+                                <td>Trust 邊界、Session 分支、Skill 系統</td>
+                                <td><code>trust.rs</code>、<code>session.rs</code>、<code>skills.rs</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>本書適合誰？</h2>
+                <p>如果你是以下任何一種人，這本書就是為你寫的：</p>
+                <ul>
+                    <li><strong>CS 初學者</strong>：想了解「AI 代理到底是怎麼運作的？」遠比想像中複雜</li>
+                    <li><strong>Rust 學習者</strong>：想看一個真實的 async Rust 專案如何組織</li>
+                    <li><strong>AI 工程師</strong>：想理解 Harness Engineering 的最佳實踐</li>
+                    <li><strong>開源貢獻者</strong>：想為這個專案貢獻程式碼，需要通盤了解架構</li>
+                </ul>
+
+                <h2>閱讀路線圖</h2>
+                <div class="roadmap">
+                    <div class="roadmap-item">
+                        <div class="roadmap-marker">1</div>
+                        <div class="roadmap-content">
+                            <h4>基礎架構（第 1-4 章）</h4>
+                            <p>了解專案結構、工作區發現、組態管理</p>
+                        </div>
+                    </div>
+                    <div class="roadmap-item">
+                        <div class="roadmap-marker">2</div>
+                        <div class="roadmap-content">
+                            <h4>安全與信任（第 5-6 章）</h4>
+                            <p>理解信任模型和沙箱策略如何保護系統</p>
+                        </div>
+                    </div>
+                    <div class="roadmap-item">
+                        <div class="roadmap-marker">3</div>
+                        <div class="roadmap-content">
+                            <h4>供應商引擎（第 7-8 章）</h4>
+                            <p>多 LLM 供應商的抽象與切換機制</p>
+                        </div>
+                    </div>
+                    <div class="roadmap-item">
+                        <div class="roadmap-marker">4</div>
+                        <div class="roadmap-content">
+                            <h4>提示詞工程（第 9-12 章）</h4>
+                            <p>指令、命令、技能如何組裝成最終提示詞</p>
+                        </div>
+                    </div>
+                    <div class="roadmap-item">
+                        <div class="roadmap-marker">5</div>
+                        <div class="roadmap-content">
+                            <h4>核心執行（第 13-15 章）</h4>
+                            <p>Agent 迴圈、工具系統、會話持久化</p>
+                        </div>
+                    </div>
+                    <div class="roadmap-item">
+                        <div class="roadmap-marker">6</div>
+                        <div class="roadmap-content">
+                            <h4>介面與綜合（第 16-19 章）</h4>
+                            <p>CLI 設計、輸出系統、全景管線、設計原理</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chapter-nav">
+                    <div></div>
+                    <a href="#ch1" class="btn btn-outline" onclick="navigateTo('ch1')">下一章：專案概觀 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH1 ==================== -->
+        <section id="ch1" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第一章</span>
+                <h1>專案概觀與設計哲學</h1>
+                <p class="chapter-desc">GemiClawdex 不只是一個 CLI 工具，它是一套完整的 Harness Engineering 參考實作。</p>
+            </div>
+            <div class="content-body">
+                <h2>GemiClawdex 是什麼？</h2>
+                <p>GemiClawdex 是一個以 <strong>Rust</strong> 編寫的終端 AI 編碼代理（Terminal AI Coding Agent），編譯為單一二進位檔 <code>gcd</code>。它的核心使命是：</p>
+                <blockquote>保留 Gemini CLI、OpenAI Codex 和 Claude Code 最好的互動模式，同時不繼承 TypeScript 執行環境的全部複雜度。</blockquote>
+
+                <h2>六大核心設計賭注</h2>
+                <p>架構文件（<code>docs/architecture.md</code>）明確列出了六個「Core Product Bets」——這些不是功能清單，而是<strong>設計決策</strong>：</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-num">1</div>
+                        <h3>Rust 為編排層</h3>
+                        <p>選擇 Rust 而非 TypeScript/Python，換取編譯期安全、零 GC 延遲、單一二進位部署。</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-num">2</div>
+                        <h3>終端優先、工作區感知</h3>
+                        <p>不依賴 IDE 外掛或 Web UI，直接在終端中運作，且自動發現專案根目錄。</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-num">3</div>
+                        <h3>可組合的三層架構</h3>
+                        <p>指令（Instructions）、命令（Commands）、技能（Skills）是三個獨立但可組合的層。</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-num">4</div>
+                        <h3>Trust & Sandbox 為一等公民</h3>
+                        <p>信任邊界和沙箱策略不是事後補丁，而是從第一天就嵌入架構的核心概念。</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-num">5</div>
+                        <h3>提示詞組裝與執行解耦</h3>
+                        <p>Prompt Assembly 完全獨立於 Provider Execution，讓系統在沒有網路的情況下也能測試。</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-num">6</div>
+                        <h3>Headless 與腳本化為一等公民</h3>
+                        <p>透過 <code>--json</code> 輸出和 Session 持久化，支援無頭執行和 CI/CD 整合。</p>
+                    </div>
+                </div>
+
+                <h2>為什麼這些設計決策很重要？</h2>
+                <p>每個設計決策都對應一個真實的工程問題：</p>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">設計啟示</div>
+                    <p>注意第 5 點「提示詞組裝與執行解耦」——這是 GemiClawdex 最聰明的設計之一。在大多數 AI 代理中，「組裝提示詞」和「呼叫 API」是糾纏在一起的。GemiClawdex 將它們完全分離，這意味著你可以在不連網的情況下測試整個提示詞管線。這就是真正的 <strong>Harness Engineering</strong>。</p>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#intro" class="btn btn-outline" onclick="navigateTo('intro')">&larr; 前言</a>
+                    <a href="#ch2" class="btn btn-outline" onclick="navigateTo('ch2')">下一章：技術棧 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH2 ==================== -->
+        <section id="ch2" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第二章</span>
+                <h1>技術棧與專案結構</h1>
+                <p class="chapter-desc">了解 GemiClawdex 用了哪些 crate、專案如何組織、每個檔案負責什麼。</p>
+            </div>
+            <div class="content-body">
+                <h2>Cargo Workspace 架構</h2>
+                <p>GemiClawdex 使用 Cargo Workspace 將專案分為兩個 crate：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">Cargo.toml（workspace root）</span></div>
+                    <div class="window-body">
+<pre><code class="language-toml">[workspace]
+members = [
+    "crates/gemi-clawdex-core",  # 核心邏輯庫
+    "crates/gemi-clawdex-cli",   # CLI 入口二進位
+]</code></pre>
+                    </div>
+                </div>
+
+                <h2>為什麼要分兩個 crate？</h2>
+                <div class="callout callout-info">
+                    <div class="callout-title">架構原則</div>
+                    <p><strong>gemi-clawdex-core</strong> 擁有所有領域邏輯，不依賴 CLI 框架（clap）。<strong>gemi-clawdex-cli</strong> 只負責解析命令列參數和呈現輸出。這種分離讓 core 可以被其他前端（如 TUI、Web API）重用，也讓單元測試不需要啟動完整的 CLI。</p>
+                </div>
+
+                <h2>關鍵依賴解析</h2>
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr><th>Crate</th><th>版本</th><th>用途</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>tokio</code></td><td>1.x</td><td>非同步執行環境，驅動所有 API 呼叫</td></tr>
+                            <tr><td><code>reqwest</code></td><td>0.11</td><td>HTTP 客戶端，與 LLM API 通訊</td></tr>
+                            <tr><td><code>serde</code> / <code>serde_json</code></td><td>1.0</td><td>序列化框架，JSON 輸入/輸出</td></tr>
+                            <tr><td><code>clap</code></td><td>4.x</td><td>CLI 參數解析（僅在 cli crate）</td></tr>
+                            <tr><td><code>thiserror</code></td><td>1.0</td><td>結構化錯誤型別</td></tr>
+                            <tr><td><code>anyhow</code></td><td>1.0</td><td>錯誤上下文傳遞</td></tr>
+                            <tr><td><code>async-trait</code></td><td>0.1</td><td>非同步 trait 支援（用於 Tool trait）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Core 模組地圖</h2>
+                <p><code>gemi-clawdex-core</code> 包含 14 個模組，以下是每個模組的職責和程式碼行數：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">crates/gemi-clawdex-core/src/</span></div>
+                    <div class="window-body">
+<pre><code class="language-text">lib.rs          (16 行)   公開 API，re-export 主要型別
+workspace.rs    (65 行)   工作區根目錄發現
+config.rs      (182 行)   SandboxPolicy、AppPaths、偏好設定
+trust.rs       (168 行)   信任存儲與規則評估
+providers.rs   (871 行)   多供應商註冊表、Profile 解析
+instructions.rs (37 行)   AGENTS.md / GEMINI.md 載入器
+commands.rs    (185 行)   自定義 TOML 命令目錄
+skills.rs      (114 行)   Markdown 技能發現與載入
+prompt.rs      (614 行)   提示詞組裝引擎
+agent.rs       (395 行)   LLM Agent 執行迴圈
+tools.rs       (346 行)   Tool trait + 5 個內建工具
+session.rs     (646 行)   Session 持久化 / resume / fork
+output.rs      (299 行)   serde Serialize 驅動的輸出系統
+app.rs         (551 行)   CLI 命令路由 facade</code></pre>
+                    </div>
+                </div>
+
+                <div class="callout callout-tip">
+                    <div class="callout-title">給初學者的提示</div>
+                    <p>如果你是第一次看 Rust 專案，建議的閱讀順序是：<code>workspace.rs</code>（最簡單）&rarr; <code>config.rs</code> &rarr; <code>trust.rs</code> &rarr; <code>tools.rs</code> &rarr; <code>agent.rs</code>。從小模組開始，逐步建立對整個系統的理解。</p>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch1" class="btn btn-outline" onclick="navigateTo('ch1')">&larr; 上一章</a>
+                    <a href="#ch3" class="btn btn-outline" onclick="navigateTo('ch3')">下一章：工作區發現 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH3 ==================== -->
+        <section id="ch3" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第三章</span>
+                <h1>工作區發現機制</h1>
+                <p class="chapter-desc">程式碼位置：<code>workspace.rs</code>（65 行）——整個系統中最小卻最基礎的模組。</p>
+            </div>
+            <div class="content-body">
+                <h2>問題：代理怎麼知道「專案在哪裡」？</h2>
+                <p>當你在 <code>/home/user/projects/my-app/src/utils/</code> 目錄下執行 <code>gcd</code> 時，代理需要知道專案根目錄是 <code>/home/user/projects/my-app/</code>，而非你所在的子目錄。這就是 <strong>Workspace Discovery</strong> 要解決的問題。</p>
+
+                <h2>核心資料結構</h2>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">workspace.rs</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">pub struct Workspace {
+    pub root: PathBuf,        // 專案根目錄
+    pub current_dir: PathBuf, // 使用者當前目錄
+    pub detected_by: String,  // 是哪個標記偵測到的
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>發現演算法</h2>
+                <p><code>Workspace::discover()</code> 從當前目錄開始，<strong>往上逐層搜尋</strong>以下標記（按優先順序）：</p>
+
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">標記偵測邏輯</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">fn detect_marker(path: &Path) -> Option&lt;&'static str&gt; {
+    let markers = [
+        (".gemi-clawdex", ".gemi-clawdex"), // 最高優先：GemiClawdex 自身設定
+        (".git", ".git"),                     // Git 倉庫根
+        ("Cargo.toml", "Cargo.toml"),         // Rust 專案
+        ("package.json", "package.json"),     // Node.js 專案
+    ];
+    for (entry, label) in markers.iter() {
+        if path.join(entry).exists() {
+            return Some(*label);
+        }
+    }
+    None
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">設計巧思</div>
+                    <p><code>.gemi-clawdex</code> 目錄排在 <code>.git</code> 之前，這意味著你可以在一個 monorepo 的子專案中放置 <code>.gemi-clawdex</code> 目錄，覆蓋 Git 根目錄的偵測。如果一路到根目錄都找不到任何標記，系統會回退（fallback）到當前目錄，用 <code>"cwd-fallback"</code> 標記。</p>
+                </div>
+
+                <h2>衍生方法</h2>
+                <p>Workspace 物件還提供了兩個便利方法，供後續模組查找工作區層級的命令和技能：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">便利方法</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">impl Workspace {
+    pub fn project_commands_dir(&self) -> PathBuf {
+        self.root.join(".gemi-clawdex").join("commands")
+    }
+    pub fn project_skills_dir(&self) -> PathBuf {
+        self.root.join(".gemi-clawdex").join("skills")
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch2" class="btn btn-outline" onclick="navigateTo('ch2')">&larr; 上一章</a>
+                    <a href="#ch4" class="btn btn-outline" onclick="navigateTo('ch4')">下一章：組態管理 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH4 ==================== -->
+        <section id="ch4" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第四章</span>
+                <h1>組態管理與路徑系統</h1>
+                <p class="chapter-desc">程式碼位置：<code>config.rs</code>（182 行）——定義沙箱策略、應用路徑與執行偏好。</p>
+            </div>
+            <div class="content-body">
+                <h2>SandboxPolicy 列舉</h2>
+                <p>這是整個安全模型的基石——四個等級的沙箱策略：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">config.rs — SandboxPolicy</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">pub enum SandboxPolicy {
+    Off,             // 無沙箱——最快，最不隔離
+    ReadOnly,        // 唯讀——最安全，適合程式碼審查
+    WorkspaceWrite,  // 工作區寫入——允許改檔，阻擋全機操作
+    Container,       // 容器隔離——最強隔離，用於不信任的倉庫
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>AppPaths：統一路徑管理</h2>
+                <p><code>AppPaths</code> 集中管理所有設定檔的路徑，避免路徑邏輯散落在各個模組中：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">路徑結構</span></div>
+                    <div class="window-body">
+<pre><code class="language-text">~/.gemi-clawdex/                   # 全域設定首頁
+    ├── trusted-folders.txt        # 信任規則資料庫
+    ├── providers.conf             # 全域供應商設定
+    ├── active-provider.txt        # 全域啟用供應商
+    ├── checkpoints/               # 檢查點存檔
+    ├── sessions/                  # 會話持久化
+    ├── commands/                  # 全域自定義命令
+    └── skills/                    # 全域技能包</code></pre>
+                    </div>
+                </div>
+
+                <h2>RuntimePreferences：環境變數驅動</h2>
+                <p>執行時偏好完全由環境變數控制，無需設定檔：</p>
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr><th>環境變數</th><th>預設值</th><th>說明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>GEMICLAWDEX_PROVIDER</code></td><td>自動偵測</td><td>預設供應商 ID</td></tr>
+                            <tr><td><code>GEMICLAWDEX_SANDBOX</code></td><td><code>workspace-write</code></td><td>預設沙箱策略</td></tr>
+                            <tr><td><code>GEMICLAWDEX_TRUST</code></td><td><code>true</code></td><td>是否啟用信任檢查</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="callout callout-tip">
+                    <div class="callout-title">自動偵測邏輯</div>
+                    <p>如果沒有設定 <code>GEMICLAWDEX_PROVIDER</code>，系統會依序檢查 <code>CLAUDE_CODE_USE_OPENAI</code>、<code>OPENAI_API_KEY</code>、<code>GEMINI_API_KEY</code>、<code>ANTHROPIC_API_KEY</code> 等環境變數，自動選擇對應的供應商。這讓「零設定啟動」成為可能。</p>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch3" class="btn btn-outline" onclick="navigateTo('ch3')">&larr; 上一章</a>
+                    <a href="#ch5" class="btn btn-outline" onclick="navigateTo('ch5')">下一章：信任模型 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH5 ==================== -->
+        <section id="ch5" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第五章</span>
+                <h1>信任模型 (Trust System)</h1>
+                <p class="chapter-desc">程式碼位置：<code>trust.rs</code>（168 行）——決定代理能對工作區做什麼。</p>
+            </div>
+            <div class="content-body">
+                <h2>為什麼需要信任模型？</h2>
+                <p>想像這個情境：你 clone 了一個陌生的開源倉庫，裡面的 <code>.gemi-clawdex/commands/</code> 目錄有一個惡意命令會刪除你的 home 目錄。如果代理盲目載入這些命令，後果不堪設想。</p>
+                <p>信任模型的核心功能是：<strong>根據工作區的信任等級，決定是否載入專案層級的指令、命令和技能</strong>。</p>
+
+                <h2>三種信任等級</h2>
+                <div class="trust-levels">
+                    <div class="trust-card trust-trusted">
+                        <div class="trust-badge">Trusted</div>
+                        <h3>完全信任</h3>
+                        <p>載入所有專案指令、命令、技能。適用於你自己的專案。</p>
+                    </div>
+                    <div class="trust-card trust-parent">
+                        <div class="trust-badge">Parent Trusted</div>
+                        <h3>父目錄信任</h3>
+                        <p>繼承父目錄的信任。例如你信任 <code>~/projects/</code>，那麼 <code>~/projects/any-repo/</code> 也被信任。</p>
+                    </div>
+                    <div class="trust-card trust-untrusted">
+                        <div class="trust-badge">Untrusted</div>
+                        <h3>不信任</h3>
+                        <p>拒絕載入專案層級設定。只使用全域設定和內建供應商。</p>
+                    </div>
+                </div>
+
+                <h2>最長路徑匹配演算法</h2>
+                <p>當多條規則同時匹配時，GemiClawdex 使用<strong>最長路徑匹配</strong>——路徑元件數最多的規則勝出：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">trust.rs — evaluate()</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">pub fn evaluate(&self, path: &Path, trust_enabled: bool) -> TrustState {
+    // 如果信任機制被停用，直接回傳 disabled
+    if !trust_enabled {
+        return TrustState { kind: None, matched_path: None, trust_enabled };
+    }
+    // 找出路徑元件數最多的匹配規則
+    let mut best_match: Option&lt;&TrustRule&gt; = None;
+    for rule in &self.rules {
+        if path.starts_with(&rule.path) {
+            match best_match {
+                Some(existing) => {
+                    if rule.path.components().count()
+                       > existing.path.components().count() {
+                        best_match = Some(rule);
+                    }
+                }
+                None => best_match = Some(rule),
+            }
+        }
+    }
+    // ...
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>信任檔案格式</h2>
+                <p>規則儲存在 <code>~/.gemi-clawdex/trusted-folders.txt</code>，格式極為簡單——TSV（Tab-Separated Values）：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">trusted-folders.txt</span></div>
+                    <div class="window-body">
+<pre><code class="language-text">trusted	/home/user/my-projects
+parent	/home/user/work
+untrusted	/tmp/sketchy-repos/malware-example</code></pre>
+                    </div>
+                </div>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">安全啟示</div>
+                    <p>信任模型是 GemiClawdex 從 Claude Code 借鏡的最重要設計之一。它示範了一個原則：<strong>在 AI 代理中，「能力」必須受「授權」約束</strong>。代理能讀寫檔案、執行 shell 命令，這些能力如果不受控，就是安全漏洞。</p>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch4" class="btn btn-outline" onclick="navigateTo('ch4')">&larr; 上一章</a>
+                    <a href="#ch6" class="btn btn-outline" onclick="navigateTo('ch6')">下一章：沙箱策略 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH6 ==================== -->
+        <section id="ch6" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第六章</span>
+                <h1>沙箱策略 (Sandbox Policy)</h1>
+                <p class="chapter-desc">信任模型決定「載入什麼」，沙箱策略決定「工具能做什麼」。</p>
+            </div>
+            <div class="content-body">
+                <h2>四級沙箱模型</h2>
+                <p>沙箱策略直接影響工具的行為。以下是四個等級的完整比較：</p>
+                <div class="comparison-table">
+                    <table>
+                        <thead><tr><th>策略</th><th>read_file</th><th>write_file</th><th>shell</th><th>適用場景</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>Off</code></td><td class="ok">允許</td><td class="ok">允許（任意路徑）</td><td class="ok">允許</td><td>自己的專案、完全信任</td></tr>
+                            <tr><td><code>WorkspaceWrite</code></td><td class="ok">允許</td><td class="warn">僅工作區內</td><td class="ok">允許</td><td>日常開發（預設）</td></tr>
+                            <tr><td><code>ReadOnly</code></td><td class="ok">允許</td><td class="no">阻擋</td><td class="no">阻擋</td><td>程式碼審查</td></tr>
+                            <tr><td><code>Container</code></td><td class="ok">允許</td><td class="warn">僅工作區內</td><td class="no">阻擋</td><td>不信任的倉庫</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>沙箱如何在工具中生效</h2>
+                <p>每個工具在執行前都會檢查 <code>ToolContext.sandbox</code>：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">tools.rs — write_file 沙箱檢查</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">async fn execute(&self, params: Value, ctx: &ToolContext) -> anyhow::Result&lt;Value&gt; {
+    // 第一道防線：ReadOnly 直接阻擋
+    if matches!(ctx.sandbox, SandboxPolicy::ReadOnly) {
+        anyhow::bail!("write_file is blocked by read-only sandbox policy");
+    }
+    // 第二道防線：非 Off 模式下，路徑必須在工作區內
+    if !matches!(ctx.sandbox, SandboxPolicy::Off)
+       && !ctx.is_within_workspace(&path) {
+        anyhow::bail!("Path is outside the workspace: {}", path.display());
+    }
+    // ... 實際寫入邏輯
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch5" class="btn btn-outline" onclick="navigateTo('ch5')">&larr; 上一章</a>
+                    <a href="#ch7" class="btn btn-outline" onclick="navigateTo('ch7')">下一章：多供應商系統 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH7 ==================== -->
+        <section id="ch7" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第七章</span>
+                <h1>多供應商系統</h1>
+                <p class="chapter-desc">程式碼位置：<code>providers.rs</code>（871 行）——整個專案最大的模組，管理 Gemini、OpenAI、Anthropic 三大供應商。</p>
+            </div>
+            <div class="content-body">
+                <h2>四層供應商來源</h2>
+                <p>GemiClawdex 的供應商系統有四層來源，後者覆蓋前者：</p>
+                <div class="roadmap">
+                    <div class="roadmap-item"><div class="roadmap-marker">1</div><div class="roadmap-content"><h4>Built-in（內建）</h4><p>三個預設供應商：<code>openai-codex</code>、<code>gemini-official</code>、<code>claude-official</code></p></div></div>
+                    <div class="roadmap-item"><div class="roadmap-marker">2</div><div class="roadmap-content"><h4>Environment（環境變數）</h4><p>偵測 <code>OPENAI_API_KEY</code>、<code>GEMINI_API_KEY</code> 等，自動生成 <code>*-env</code> profile</p></div></div>
+                    <div class="roadmap-item"><div class="roadmap-marker">3</div><div class="roadmap-content"><h4>Global Config（全域設定）</h4><p>從 <code>~/.gemi-clawdex/providers.conf</code> 載入</p></div></div>
+                    <div class="roadmap-item"><div class="roadmap-marker">4</div><div class="roadmap-content"><h4>Workspace Config（工作區設定）</h4><p>從 <code>&lt;repo&gt;/.gemi-clawdex/providers.conf</code> 載入（受信任規則控制）</p></div></div>
+                </div>
+
+                <h2>供應商 Profile 結構</h2>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">providers.rs — ProviderProfile</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">pub struct ProviderProfile {
+    pub id: String,                    // e.g. "gemini-official"
+    pub family: ProviderFamily,        // Gemini | OpenAiCompatible | Anthropic
+    pub protocol: ProviderProtocol,    // 具體的 API 協定
+    pub label: String,                 // 人類可讀名稱
+    pub api_base: String,              // API 端點基礎 URL
+    pub api_key_env: String,           // API 金鑰的環境變數名稱
+    pub model: String,                 // 模型 ID
+    pub best_for: String,              // 最佳用途描述
+    pub strengths: Vec&lt;String&gt;,        // 優勢列表
+    pub supports_multimodal: bool,     // 是否支援多模態
+    pub supports_grounding: bool,      // 是否支援 grounding
+    pub source: ProviderSource,        // 來源追蹤
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>供應商解析優先順序</h2>
+                <p><code>resolve_profile()</code> 按以下順序查找供應商：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">解析鏈</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">let candidates = [
+    explicit_id,                    // 1. CLI 明確指定 --provider
+    preferred_id,                   // 2. 環境變數偏好
+    self.active_workspace.as_deref(), // 3. 工作區 active-provider.txt
+    self.active_global.as_deref(),    // 4. 全域 active-provider.txt
+    Some(DEFAULT_PROVIDER_ID),        // 5. 內建預設 "openai-codex"
+];</code></pre>
+                    </div>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch6" class="btn btn-outline" onclick="navigateTo('ch6')">&larr; 上一章</a>
+                    <a href="#ch8" class="btn btn-outline" onclick="navigateTo('ch8')">下一章：設定檔格式 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH8 ==================== -->
+        <section id="ch8" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第八章</span>
+                <h1>供應商設定檔格式</h1>
+                <p class="chapter-desc">深入 <code>providers.conf</code> 的自定義格式解析器。</p>
+            </div>
+            <div class="content-body">
+                <h2>設定檔範例</h2>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">.gemi-clawdex/providers.conf</span></div>
+                    <div class="window-body">
+<pre><code class="language-toml">[provider "openrouter-codex"]
+label = "OpenRouter Relay for Codex"
+family = "openai-compatible"
+protocol = "openai-responses"
+api_base = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+model = "openai/codex-mini-latest"
+best_for = "relay routing, one key for multiple vendors"
+supports_multimodal = false
+supports_grounding = false
+strengths = "relay routing | one key for multiple vendors"
+
+[provider "local-ollama-coder"]
+label = "Local Ollama Coder"
+family = "openai-compatible"
+protocol = "openai-chat-completions"
+api_base = "http://localhost:11434/v1"
+api_key_env = "OLLAMA_API_KEY"
+model = "qwen2.5-coder:latest"
+best_for = "offline local development"</code></pre>
+                    </div>
+                </div>
+
+                <h2>解析器實作亮點</h2>
+                <p>GemiClawdex 實作了自己的 INI-like 解析器，而非使用通用 TOML 解析器。這是刻意的設計——保持 core crate 零非必要依賴。</p>
+                <ul>
+                    <li><code>parse_provider_section()</code> 解析 <code>[provider "id"]</code> 區塊頭</li>
+                    <li><code>parse_string_literal()</code> 處理雙引號字串，支援 <code>\n</code>、<code>\t</code>、<code>\\</code> 跳脫序列</li>
+                    <li><code>strengths</code> 欄位使用 <code>|</code> 分隔，這個選擇避免了 TOML 陣列語法的複雜性</li>
+                </ul>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">Doctor 命令</div>
+                    <p>執行 <code>gcd providers doctor</code> 可以診斷供應商設定是否正確，包括檢查 API 金鑰是否存在（遮罩顯示）、目前的啟用範圍等。</p>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch7" class="btn btn-outline" onclick="navigateTo('ch7')">&larr; 上一章</a>
+                    <a href="#ch9" class="btn btn-outline" onclick="navigateTo('ch9')">下一章：指令載入器 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH9 ==================== -->
+        <section id="ch9" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第九章</span>
+                <h1>指令載入器 (Instructions)</h1>
+                <p class="chapter-desc">程式碼位置：<code>instructions.rs</code>（37 行）——最精簡的模組，但功能關鍵。</p>
+            </div>
+            <div class="content-body">
+                <h2>什麼是 Repository Instructions？</h2>
+                <p>Repository Instructions 是放在專案根目錄的 Markdown 檔案，告訴 AI 代理如何與這個專案互動。GemiClawdex 支援四種指令檔：</p>
+                <div class="comparison-table">
+                    <table>
+                        <thead><tr><th>檔案</th><th>來源靈感</th><th>典型內容</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>AGENTS.md</code></td><td>OpenAI Codex</td><td>專案架構、貢獻規範、程式碼風格</td></tr>
+                            <tr><td><code>GEMINI.md</code></td><td>Gemini CLI</td><td>Gemini 特定的上下文提示</td></tr>
+                            <tr><td><code>CLAUDE.md</code></td><td>Claude Code</td><td>Claude 特定的行為指引</td></tr>
+                            <tr><td><code>GEMICLAWDEX.md</code></td><td>GemiClawdex</td><td>GemiClawdex 專用指令</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">信任守門</div>
+                    <p>指令載入受信任系統控制。如果工作區是 <code>untrusted</code>，這些檔案<strong>不會被載入</strong>。這是防止「透過 Markdown 注入惡意提示詞」的關鍵防線。</p>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch8" class="btn btn-outline" onclick="navigateTo('ch8')">&larr; 上一章</a>
+                    <a href="#ch10" class="btn btn-outline" onclick="navigateTo('ch10')">下一章：命令目錄 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH10 ==================== -->
+        <section id="ch10" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第十章</span>
+                <h1>命令目錄系統 (Commands)</h1>
+                <p class="chapter-desc">程式碼位置：<code>commands.rs</code>（185 行）——TOML 格式的可重用命令模板。</p>
+            </div>
+            <div class="content-body">
+                <h2>命令是什麼？</h2>
+                <p>命令是可重用的提示詞模板，用 TOML 格式定義。你可以用 <code>/review src/app.rs</code> 這樣的斜線語法觸發它們。</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">.gemi-clawdex/commands/review.toml</span></div>
+                    <div class="window-body">
+<pre><code class="language-toml">description = "Review file or directory"
+prompt = """
+Review the following code with these priorities:
+1. Bugs and regressions
+2. Missing test coverage
+3. Performance issues
+
+Target: {{args}}
+Context: @{AGENTS.md}
+"""</code></pre>
+                    </div>
+                </div>
+
+                <h2>命名規則</h2>
+                <p>命令名稱由檔案路徑決定，目錄分隔符轉為冒號：</p>
+                <ul>
+                    <li><code>commands/review.toml</code> &rarr; <code>/review</code></li>
+                    <li><code>commands/plan/refactor.toml</code> &rarr; <code>/plan:refactor</code></li>
+                </ul>
+
+                <h2>特殊語法</h2>
+                <ul>
+                    <li><code>{{args}}</code>——替換為使用者在斜線命令後輸入的參數</li>
+                    <li><code>@{file.txt}</code>——注入檔案內容（在 Prompt Assembly 階段處理）</li>
+                    <li><code>!{git status}</code>——標記為需要審批的 Shell 命令</li>
+                </ul>
+
+                <div class="chapter-nav">
+                    <a href="#ch9" class="btn btn-outline" onclick="navigateTo('ch9')">&larr; 上一章</a>
+                    <a href="#ch11" class="btn btn-outline" onclick="navigateTo('ch11')">下一章：技能系統 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH11 ==================== -->
+        <section id="ch11" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第十一章</span>
+                <h1>技能系統 (Skills)</h1>
+                <p class="chapter-desc">程式碼位置：<code>skills.rs</code>（114 行）——Markdown 格式的可重用行為模組。</p>
+            </div>
+            <div class="content-body">
+                <h2>技能 vs 命令</h2>
+                <div class="comparison-table">
+                    <table>
+                        <thead><tr><th>面向</th><th>命令 (Command)</th><th>技能 (Skill)</th></tr></thead>
+                        <tbody>
+                            <tr><td>格式</td><td>TOML</td><td>Markdown</td></tr>
+                            <tr><td>觸發方式</td><td><code>/name args</code></td><td><code>--skill name</code></td></tr>
+                            <tr><td>主要內容</td><td>提示詞模板</td><td>行為指南</td></tr>
+                            <tr><td>角色</td><td>「做什麼」</td><td>「怎麼做」</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>技能檔案範例</h2>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">.gemi-clawdex/skills/code-review/SKILL.md</span></div>
+                    <div class="window-body">
+<pre><code class="language-markdown"># Code Review Guidelines
+
+When reviewing code, prioritize in this order:
+1. **Bugs and regressions** — issues that break existing behavior
+2. **Missing tests** — new code paths without coverage
+3. **Security** — input validation, injection risks
+4. **Performance** — unnecessary allocations, N+1 queries
+5. **Readability** — naming, comments, code organization</code></pre>
+                    </div>
+                </div>
+
+                <h2>發現邏輯</h2>
+                <p>技能載入器會遞迴掃描 Markdown 檔案，命名規則如下：</p>
+                <ul>
+                    <li>如果檔案叫 <code>SKILL.md</code>，技能名稱取自所在目錄名：<code>skills/code-review/SKILL.md</code> &rarr; <code>code-review</code></li>
+                    <li>其他 <code>.md</code> 檔案使用檔名（去掉副檔名），目錄以冒號分隔：<code>skills/testing/unit.md</code> &rarr; <code>testing:unit</code></li>
+                </ul>
+
+                <div class="chapter-nav">
+                    <a href="#ch10" class="btn btn-outline" onclick="navigateTo('ch10')">&larr; 上一章</a>
+                    <a href="#ch12" class="btn btn-outline" onclick="navigateTo('ch12')">下一章：提示詞組裝 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH12 ==================== -->
+        <section id="ch12" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第十二章</span>
+                <h1>提示詞組裝引擎</h1>
+                <p class="chapter-desc">程式碼位置：<code>prompt.rs</code>（614 行）——將一切組裝成最終送給 LLM 的提示詞。</p>
+            </div>
+            <div class="content-body">
+                <h2>組裝流程概覽</h2>
+                <p><code>assemble_prompt()</code> 是整個提示詞管線的主函數，它接收以下輸入：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">prompt.rs — PromptRequest</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">pub struct PromptRequest&lt;'a&gt; {
+    pub workspace: &'a Workspace,       // 工作區資訊
+    pub trust: &'a TrustState,          // 信任狀態
+    pub sandbox: SandboxPolicy,         // 沙箱等級
+    pub provider: ProviderProfile,      // 目標供應商
+    pub instructions: &'a InstructionBundle, // 倉庫指令
+    pub commands: &'a CommandCatalog,   // 命令目錄
+    pub skills: &'a SkillCatalog,       // 技能目錄
+    pub selected_skill: Option&lt;&'a str&gt;,// 選中的技能
+    pub user_input: &'a str,            // 使用者原始輸入
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>四個處理階段</h2>
+
+                <h3>階段 1：命令解析</h3>
+                <p>如果輸入以 <code>/</code> 開頭，將其解析為命令調用，展開命令模板並替換 <code>{{args}}</code>。</p>
+
+                <h3>階段 2：檔案注入 <code>@{...}</code></h3>
+                <p>掃描文本中的 <code>@{path}</code> 標記，將對應檔案的內容內嵌到提示詞中：</p>
+                <ul>
+                    <li>文字檔案：前 400 行或 32KB，帶行號</li>
+                    <li>目錄：列出最多 200 個檔案</li>
+                    <li>二進位檔案（png/jpg/pdf）：生成佔位標記，由供應商適配器處理</li>
+                </ul>
+
+                <h3>階段 3：Shell 審批 <code>!{...}</code></h3>
+                <p><code>!{git status}</code> 被轉換為 <code>&lt;shell-approval required="true"&gt;git status&lt;/shell-approval&gt;</code>，並加入待審批清單。</p>
+
+                <h3>階段 4：最終組裝</h3>
+                <p>將所有內容按以下順序拼接為最終提示詞：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">最終提示詞結構</span></div>
+                    <div class="window-body">
+<pre><code class="language-text"># Runtime
+Provider: Google Gemini (gemini-2.5-pro)
+Sandbox: workspace-write
+Trust: trusted
+Workspace: /home/user/my-project
+
+# Repository Instructions
+## AGENTS.md
+（倉庫指令內容）
+
+# Loaded Skill
+Name: code-review
+（技能內容）
+
+# Task
+（經過展開的使用者任務）
+
+# Pending Shell Commands
+- git status</code></pre>
+                    </div>
+                </div>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">為什麼 Runtime 資訊要放在提示詞裡？</div>
+                    <p>將供應商、沙箱、信任狀態等資訊注入提示詞，讓 LLM 能根據當前環境調整行為。例如，如果 LLM 看到 <code>Sandbox: read-only</code>，它就知道不該嘗試寫入檔案。</p>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch11" class="btn btn-outline" onclick="navigateTo('ch11')">&larr; 上一章</a>
+                    <a href="#ch13" class="btn btn-outline" onclick="navigateTo('ch13')">下一章：Agent 迴圈 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH13 ==================== -->
+        <section id="ch13" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第十三章</span>
+                <h1>Agent 迴圈 (Agent Loop)</h1>
+                <p class="chapter-desc">程式碼位置：<code>agent.rs</code>（395 行）——整個系統的心臟，LLM 與工具交互的核心迴圈。</p>
+            </div>
+            <div class="content-body">
+                <h2>什麼是 Agent Loop？</h2>
+                <p>Agent Loop 是 AI 代理的核心執行模式。它不是「問一次答一次」的聊天機器人，而是一個<strong>自主迴圈</strong>：</p>
+                <div class="agent-loop-diagram">
+                    <div class="loop-step loop-active">
+                        <div class="loop-num">1</div>
+                        <div class="loop-content">
+                            <h4>送出提示詞</h4>
+                            <p>將組裝好的提示詞送給 LLM API</p>
+                        </div>
+                    </div>
+                    <div class="loop-arrow">&darr;</div>
+                    <div class="loop-step">
+                        <div class="loop-num">2</div>
+                        <div class="loop-content">
+                            <h4>解析回應</h4>
+                            <p>檢查回應中是否包含工具呼叫</p>
+                        </div>
+                    </div>
+                    <div class="loop-arrow">&darr;</div>
+                    <div class="loop-step">
+                        <div class="loop-num">3</div>
+                        <div class="loop-content">
+                            <h4>執行工具</h4>
+                            <p>執行 read_file、write_file、shell 等工具</p>
+                        </div>
+                    </div>
+                    <div class="loop-arrow">&darr;</div>
+                    <div class="loop-step">
+                        <div class="loop-num">4</div>
+                        <div class="loop-content">
+                            <h4>回饋結果</h4>
+                            <p>將工具結果作為新訊息回饋給 LLM</p>
+                        </div>
+                    </div>
+                    <div class="loop-arrow loop-back">&uarr; 回到步驟 1（直到無工具呼叫或達到上限）</div>
+                </div>
+
+                <h2>核心程式碼走讀</h2>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">agent.rs — run_agent()</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">pub async fn run_agent(options: AgentRunOptions) -> anyhow::Result&lt;AgentRunResult&gt; {
+    let tools = builtin_tools();
+    let tool_ctx = ToolContext {
+        workspace_root: options.workspace_root.clone(),
+        sandbox: options.sandbox.clone(),
+    };
+    let mut messages = vec![AgentMessage {
+        role: "user".to_string(),
+        content: options.initial_prompt.clone(),
+        tool_calls: None,
+        tool_call_id: None,
+    }];
+
+    for turn in 0..options.max_turns {
+        // 1. 呼叫供應商 API
+        let response = call_provider_api(&options, &messages, &tools).await?;
+
+        // 2. 檢查是否有工具呼叫
+        if let Some(ref calls) = response.tool_calls {
+            messages.push(response.clone());
+
+            // 3. 逐一執行工具
+            for call in calls {
+                let result = execute_tool_call(call, &tools, &tool_ctx).await;
+                // 4. 將工具結果回饋
+                messages.push(AgentMessage {
+                    role: "tool".to_string(),
+                    content: serde_json::to_string(&result).unwrap_or_default(),
+                    tool_calls: None,
+                    tool_call_id: Some(call.id.clone()),
+                });
+            }
+        } else {
+            // 沒有工具呼叫 = 最終回應，跳出迴圈
+            final_response = response.content.clone();
+            break;
+        }
+    }
+    // ...
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>安全上限</h2>
+                <p><code>DEFAULT_MAX_TURNS = 10</code>——無論如何，Agent 最多執行 10 輪。這是一個安全閥門，防止無限迴圈消耗 API 額度。</p>
+
+                <h2>三大供應商適配器</h2>
+                <p><code>call_provider_api()</code> 根據供應商 family 分派到不同的適配器：</p>
+                <div class="comparison-table">
+                    <table>
+                        <thead><tr><th>Family</th><th>適配器</th><th>工具呼叫支援</th></tr></thead>
+                        <tbody>
+                            <tr><td>Gemini</td><td><code>call_gemini_api()</code></td><td>完整（functionCall 解析）</td></tr>
+                            <tr><td>OpenAI Compatible</td><td><code>call_openai_api()</code></td><td>基本（chat completions）</td></tr>
+                            <tr><td>Anthropic</td><td><code>call_anthropic_api()</code></td><td>基本（messages API）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch12" class="btn btn-outline" onclick="navigateTo('ch12')">&larr; 上一章</a>
+                    <a href="#ch14" class="btn btn-outline" onclick="navigateTo('ch14')">下一章：工具系統 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH14 ==================== -->
+        <section id="ch14" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第十四章</span>
+                <h1>工具系統 (Tool System)</h1>
+                <p class="chapter-desc">程式碼位置：<code>tools.rs</code>（346 行）——定義 Tool trait 和五個內建工具。</p>
+            </div>
+            <div class="content-body">
+                <h2>Tool Trait：統一的工具介面</h2>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">tools.rs — Tool trait</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">#[async_trait::async_trait]
+pub trait Tool: Send + Sync {
+    fn name(&self) -> &str;                    // 機器可讀名稱
+    fn description(&self) -> &str;             // 人類可讀描述
+    fn parameters_schema(&self) -> Value;      // JSON Schema
+    async fn execute(
+        &self, params: Value, ctx: &ToolContext
+    ) -> anyhow::Result&lt;Value&gt;;                // 執行並回傳 JSON
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>五個內建工具</h2>
+                <div class="tool-cards">
+                    <div class="tool-card">
+                        <div class="tool-name">read_file</div>
+                        <div class="tool-desc">讀取工作區內的檔案內容。自動檢查路徑是否在工作區邊界內。</div>
+                        <div class="tool-sandbox">沙箱：所有等級皆可用</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-name">write_file</div>
+                        <div class="tool-desc">建立或覆寫檔案。自動建立父目錄。受沙箱策略控制。</div>
+                        <div class="tool-sandbox">沙箱：ReadOnly 阻擋 / 非 Off 限制在工作區內</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-name">list_dir</div>
+                        <div class="tool-desc">列出目錄內容，回傳檔案名稱、是否為目錄/檔案。</div>
+                        <div class="tool-sandbox">沙箱：所有等級皆可用</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-name">shell</div>
+                        <div class="tool-desc">在工作區目錄下執行 Shell 命令。回傳 stdout、stderr、exit_code。</div>
+                        <div class="tool-sandbox">沙箱：ReadOnly 和 Container 阻擋</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-name">search_files</div>
+                        <div class="tool-desc">正則表達式搜尋。優先使用 ripgrep，回退到 grep。最多回傳 50 筆結果。</div>
+                        <div class="tool-sandbox">沙箱：所有等級皆可用</div>
+                    </div>
+                </div>
+
+                <h2>ToolContext：共享上下文</h2>
+                <p>每次工具調用都會收到 <code>ToolContext</code>，提供工作區路徑和沙箱策略。<code>is_within_workspace()</code> 使用 <code>fs::canonicalize()</code> 解析符號連結，防止路徑穿越攻擊。</p>
+
+                <div class="chapter-nav">
+                    <a href="#ch13" class="btn btn-outline" onclick="navigateTo('ch13')">&larr; 上一章</a>
+                    <a href="#ch15" class="btn btn-outline" onclick="navigateTo('ch15')">下一章：會話持久化 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH15 ==================== -->
+        <section id="ch15" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第十五章</span>
+                <h1>會話持久化 (Session Persistence)</h1>
+                <p class="chapter-desc">程式碼位置：<code>session.rs</code>（646 行）——讓代理擁有「記憶」。</p>
+            </div>
+            <div class="content-body">
+                <h2>為什麼需要 Session？</h2>
+                <p>沒有 Session，每次執行 <code>gcd exec</code> 都是從零開始。Session 讓你可以：</p>
+                <ul>
+                    <li><strong>Resume</strong>：繼續上次的工作，LLM 能看到之前的上下文摘要</li>
+                    <li><strong>Fork</strong>：從某個會話分支出去，嘗試不同方向</li>
+                    <li><strong>Review</strong>：回顧歷史會話，了解代理做過什麼</li>
+                </ul>
+
+                <h2>儲存格式</h2>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">Session 目錄結構</span></div>
+                    <div class="window-body">
+<pre><code class="language-text">~/.gemi-clawdex/sessions/
+    └── 1712345678-review/
+        ├── session.txt         # 元資料（id, workspace, timestamps）
+        └── turns/
+            ├── 0001.txt        # 第一輪（含 header + input + prompt）
+            ├── 0002.txt        # 第二輪
+            └── 0003.txt        # 第三輪</code></pre>
+                    </div>
+                </div>
+
+                <h2>Session ID 生成</h2>
+                <p>ID 格式為 <code>{毫秒時間戳}-{slugified 任務名}</code>，例如 <code>1712345678000-review-providers</code>。slug 化規則：小寫、非字母數字字元轉為 <code>-</code>、去除首尾 <code>-</code>。</p>
+
+                <h2>Fork 語意</h2>
+                <p>Fork 會複製所有已有的 turn，建立新的 Session ID，並記錄 <code>parent_id</code> 形成譜系（lineage）。這讓你能追蹤一個會話是從哪裡分支出來的。</p>
+
+                <div class="callout callout-tip">
+                    <div class="callout-title">Session Context 注入</div>
+                    <p>Resume/Fork 時，系統會呼叫 <code>render_session_context()</code> 生成一段摘要，注入到最終提示詞的 <code># Task</code> 區塊之前。這段摘要包含會話 ID、模式、最近 3 輪的概要，讓 LLM 快速掌握之前的工作。</p>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch14" class="btn btn-outline" onclick="navigateTo('ch14')">&larr; 上一章</a>
+                    <a href="#ch16" class="btn btn-outline" onclick="navigateTo('ch16')">下一章：CLI 介面 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH16 ==================== -->
+        <section id="ch16" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第十六章</span>
+                <h1>CLI 介面設計</h1>
+                <p class="chapter-desc">程式碼位置：<code>crates/gemi-clawdex-cli/src/main.rs</code>——使用 clap 4 建構的命令列介面。</p>
+            </div>
+            <div class="content-body">
+                <h2>命令結構</h2>
+                <p>二進位名稱為 <code>gcd</code>（GemiClawDex 的縮寫），支援以下子命令：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">gcd 命令結構</span></div>
+                    <div class="window-body">
+<pre><code class="language-text">gcd                             # 無參數 → 啟動互動式 REPL
+gcd overview                    # 顯示工作區概覽
+gcd providers list|current|show|use|doctor
+gcd commands reload             # 重新載入命令目錄
+gcd trust status|set            # 管理信任邊界
+gcd checkpoints list            # 列出檢查點
+gcd sessions list|show|fork     # 管理會話
+gcd exec [options] "任務"        # 執行編碼任務
+    --provider ID               # 指定供應商
+    --skill NAME                # 附加技能
+    --sandbox LEVEL             # 覆蓋沙箱等級
+    --resume SESSION_ID         # 續接會話
+    --fork SESSION_ID           # 分支會話
+    --checkpoint                # 儲存檢查點
+    --no-session                # 不持久化
+    --print-prompt              # 印出組裝後的提示詞</code></pre>
+                    </div>
+                </div>
+
+                <h2>全域旗標</h2>
+                <p><code>--json</code>——所有命令都支援 JSON 輸出模式，方便腳本和 CI/CD 整合。</p>
+
+                <div class="chapter-nav">
+                    <a href="#ch15" class="btn btn-outline" onclick="navigateTo('ch15')">&larr; 上一章</a>
+                    <a href="#ch17" class="btn btn-outline" onclick="navigateTo('ch17')">下一章：輸出系統 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH17 ==================== -->
+        <section id="ch17" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第十七章</span>
+                <h1>輸出渲染系統</h1>
+                <p class="chapter-desc">程式碼位置：<code>output.rs</code>（299 行）——serde Serialize 驅動的雙模式輸出。</p>
+            </div>
+            <div class="content-body">
+                <h2>AppOutput：雙模式輸出</h2>
+                <p>每個命令的處理結果都封裝為 <code>AppOutput</code>：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">output.rs — AppOutput</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">pub struct AppOutput {
+    lines: Vec&lt;String&gt;,            // 人類可讀的文字行
+    json_value: serde_json::Value,  // 機器可讀的 JSON
+}
+
+impl AppOutput {
+    pub fn render(&self) -> String { ... }      // 文字模式
+    pub fn render_json(&self) -> String { ... } // JSON 模式
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>為什麼用 Serialize 取代手寫 JSON？</h2>
+                <p>在程式碼註解中提到：<em>「replaces the previous hand-written JsonValue builder (400+ lines → ~120)」</em>。使用 <code>#[derive(Serialize)]</code> 讓每個輸出結構體自動生成序列化邏輯，大幅減少程式碼量和出錯機會。</p>
+
+                <div class="chapter-nav">
+                    <a href="#ch16" class="btn btn-outline" onclick="navigateTo('ch16')">&larr; 上一章</a>
+                    <a href="#ch18" class="btn btn-outline" onclick="navigateTo('ch18')">下一章：執行管線全景 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH18 ==================== -->
+        <section id="ch18" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第十八章</span>
+                <h1>14 步執行管線全景</h1>
+                <p class="chapter-desc">程式碼位置：<code>app.rs</code>（551 行）——將所有模組串連的命令路由 facade。</p>
+            </div>
+            <div class="content-body">
+                <h2>從 <code>gcd exec</code> 到 LLM 回應</h2>
+                <p>當你執行 <code>gcd exec "解釋架構"</code> 時，系統依序執行以下 14 個步驟。這正是 <code>app.rs</code> 的 <code>exec()</code> 方法所編排的完整管線：</p>
+
+                <div class="pipeline">
+                    <div class="pipeline-step"><div class="pipeline-num">1</div><div class="pipeline-content"><strong>工作區發現</strong><br><code>Workspace::discover()</code> — 找到專案根目錄</div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">2</div><div class="pipeline-content"><strong>信任評估</strong><br><code>TrustStore::evaluate()</code> — 判斷工作區信任等級</div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">3</div><div class="pipeline-content"><strong>載入供應商</strong><br><code>ProviderRegistry::load()</code> — 合併四層供應商來源</div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">4</div><div class="pipeline-content"><strong>載入命令目錄</strong><br><code>CommandCatalog::load()</code> — 如果信任允許</div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">5</div><div class="pipeline-content"><strong>載入技能目錄</strong><br><code>SkillCatalog::load()</code> — 如果信任允許</div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">6</div><div class="pipeline-content"><strong>載入倉庫指令</strong><br><code>InstructionBundle::load()</code> — AGENTS.md 等</div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">7</div><div class="pipeline-content"><strong>解析供應商</strong><br><code>resolve_profile()</code> — 按優先鏈解析目標供應商</div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">8</div><div class="pipeline-content"><strong>解析 Session</strong><br>處理 <code>--resume</code> 或 <code>--fork</code> 參數</div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">9</div><div class="pipeline-content"><strong>組裝提示詞</strong><br><code>assemble_prompt()</code> — 展開命令、注入檔案、審批 shell</div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">10</div><div class="pipeline-content"><strong>注入 Session 上下文</strong><br><code>inject_section_before_task()</code> — Resume/Fork 歷史</div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">11</div><div class="pipeline-content"><strong>儲存檢查點</strong><br><code>save_checkpoint()</code> — 如果 <code>--checkpoint</code></div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">12</div><div class="pipeline-content"><strong>持久化 Session</strong><br><code>save_new_session()</code> / <code>append_session_turn()</code></div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">13</div><div class="pipeline-content"><strong>渲染輸出</strong><br><code>render_exec_output()</code> — 生成文字 + JSON 雙模式輸出</div></div>
+                    <div class="pipeline-step"><div class="pipeline-num">14</div><div class="pipeline-content"><strong>Agent 迴圈</strong><br><code>run_agent()</code> — 送給 LLM、執行工具、迴圈至完成</div></div>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch17" class="btn btn-outline" onclick="navigateTo('ch17')">&larr; 上一章</a>
+                    <a href="#ch19" class="btn btn-outline" onclick="navigateTo('ch19')">下一章：原理總結 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CH19 ==================== -->
+        <section id="ch19" class="chapter">
+            <div class="chapter-header">
+                <span class="chapter-number">第十九章</span>
+                <h1>Harness Engineering 原理總結</h1>
+                <p class="chapter-desc">從 GemiClawdex 的實作中提煉出的 Harness Engineering 設計原則。</p>
+            </div>
+            <div class="content-body">
+                <h2>七大設計原則</h2>
+
+                <div class="principle-list">
+                    <div class="principle">
+                        <div class="principle-num">1</div>
+                        <div class="principle-body">
+                            <h3>分層可組合</h3>
+                            <p>指令、命令、技能是三個獨立的層，可以自由組合。這避免了「巨型提示詞模板」的脆弱性。</p>
+                        </div>
+                    </div>
+                    <div class="principle">
+                        <div class="principle-num">2</div>
+                        <div class="principle-body">
+                            <h3>安全即架構</h3>
+                            <p>Trust 和 Sandbox 不是外掛的安全模組，而是貫穿整個系統的一等公民。每個模組都知道信任狀態。</p>
+                        </div>
+                    </div>
+                    <div class="principle">
+                        <div class="principle-num">3</div>
+                        <div class="principle-body">
+                            <h3>組裝與執行分離</h3>
+                            <p>Prompt Assembly 完全不依賴網路。你可以在離線狀態下測試整個提示詞管線——這是可測試性的極致追求。</p>
+                        </div>
+                    </div>
+                    <div class="principle">
+                        <div class="principle-num">4</div>
+                        <div class="principle-body">
+                            <h3>供應商無關</h3>
+                            <p>Gemini、OpenAI、Anthropic 在統一的 <code>ProviderProfile</code> 抽象下等價。切換供應商不需改動提示詞或工具。</p>
+                        </div>
+                    </div>
+                    <div class="principle">
+                        <div class="principle-num">5</div>
+                        <div class="principle-body">
+                            <h3>純文字即真理</h3>
+                            <p>設定檔（TSV 信任、INI 供應商、TOML 命令、Markdown 技能）全是人類可讀的純文字。不需要資料庫或二進位格式。</p>
+                        </div>
+                    </div>
+                    <div class="principle">
+                        <div class="principle-num">6</div>
+                        <div class="principle-body">
+                            <h3>Session 即記憶</h3>
+                            <p>Resume/Fork 語意讓代理擁有跨執行的記憶能力，且所有狀態都是純文字檔案，方便版本控制。</p>
+                        </div>
+                    </div>
+                    <div class="principle">
+                        <div class="principle-num">7</div>
+                        <div class="principle-body">
+                            <h3>雙模式輸出</h3>
+                            <p>每個命令同時支援人類可讀（文字）和機器可讀（JSON）輸出。Headless/CI 與互動使用共用同一套程式碼。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h2>帶走的啟示</h2>
+                <div class="callout callout-info">
+                    <div class="callout-title">如果你只記住一件事</div>
+                    <p><strong>AI 代理的品質，80% 由 Harness 決定，20% 由模型決定。</strong>GemiClawdex 用 ~4,500 行 Rust 示範了這一點：模型只是 <code>agent.rs</code> 中的一個 HTTP 呼叫，但圍繞它的工作區發現、信任邊界、沙箱策略、多供應商管理、提示詞組裝、會話持久化等工程——這才是讓 AI 代理真正可靠、可用、可信的關鍵。</p>
+                </div>
+
+                <div class="final-cta">
+                    <h2>繼續探索</h2>
+                    <p>本書涵蓋了 GemiClawdex 的完整原始碼。如果你想動手實踐：</p>
+                    <div class="cta-actions">
+                        <div class="cta-card">
+                            <h4>Clone & Build</h4>
+                            <code>cargo build --release</code>
+                        </div>
+                        <div class="cta-card">
+                            <h4>跑測試</h4>
+                            <code>cargo test</code>
+                        </div>
+                        <div class="cta-card">
+                            <h4>閱讀原始碼</h4>
+                            <code>crates/gemi-clawdex-core/src/</code>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chapter-nav">
+                    <a href="#ch18" class="btn btn-outline" onclick="navigateTo('ch18')">&larr; 上一章</a>
+                    <a href="#home" class="btn btn-primary" onclick="navigateTo('home')">回到首頁</a>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Back to top -->
+    <button class="back-to-top" id="backToTop" aria-label="Back to top">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+    </button>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-rust.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-toml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

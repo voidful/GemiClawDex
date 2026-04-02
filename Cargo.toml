@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "crates/gemi-clawdex-core",
+  "crates/gemi-clawdex-cli",
+]
+resolver = "2"

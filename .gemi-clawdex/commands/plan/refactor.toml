@@ -1,0 +1,6 @@
+description = "Create a refactor plan with architecture context"
+model = "gemini"
+prompt = """Study @{docs/architecture.md} and then create a refactor plan for {{args}}.
+
+Call out which changes belong in the core crate versus the CLI crate.
+"""
