@@ -1214,76 +1214,153 @@ When reviewing code, prioritize in this order:
         <section id="ch12" class="chapter">
             <div class="chapter-header">
                 <span class="chapter-number">第十二章</span>
-                <h1>提示詞組裝引擎</h1>
-                <p class="chapter-desc">程式碼位置：<code>prompt.rs</code>（614 行）——將一切組裝成最終送給 LLM 的提示詞。</p>
+                <h1>提示詞組裝引擎 — 逐行原始碼導讀</h1>
+                <p class="chapter-desc">程式碼位置：<code>prompt.rs</code>（615 行）——將 Context、Sandbox、Trust、Files 組裝成最終送給 LLM 的完整提示詞。</p>
             </div>
             <div class="content-body">
-                <h2>組裝流程概覽</h2>
-                <p><code>assemble_prompt()</code> 是整個提示詞管線的主函數，它接收以下輸入：</p>
+
+                <h2>為什麼要有 Prompt Engine？</h2>
+                <p>在大多數 AI 代理框架中，「組裝提示詞」和「呼叫 API」是緊密糾纏在一起的。GemiClawdex 刻意將兩者<strong>完全解耦</strong>——你可以在不連網的情況下測試整個提示詞管線。這就是 Harness Engineering 的核心精神。</p>
+
+                <h2>1. PromptAssembly 結構宣告</h2>
+                <p>最終的系統提示詞不只是一個字串，而是一個結構化的 <code>PromptAssembly</code> 產物，同時記錄了附件清單與待審批指令：</p>
                 <div class="code-window">
-                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">prompt.rs — PromptRequest</span></div>
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">prompt.rs — PromptAssembly 結構</span></div>
                     <div class="window-body">
-<pre><code class="language-rust">pub struct PromptRequest&lt;'a&gt; {
-    pub workspace: &'a Workspace,       // 工作區資訊
-    pub trust: &'a TrustState,          // 信任狀態
-    pub sandbox: SandboxPolicy,         // 沙箱等級
-    pub provider: ProviderProfile,      // 目標供應商
-    pub instructions: &'a InstructionBundle, // 倉庫指令
-    pub commands: &'a CommandCatalog,   // 命令目錄
-    pub skills: &'a SkillCatalog,       // 技能目錄
-    pub selected_skill: Option&lt;&'a str&gt;,// 選中的技能
-    pub user_input: &'a str,            // 使用者原始輸入
+<pre><code class="language-rust">pub struct PromptAssembly {
+    pub provider: ProviderProfile,       // 當前選用的供應商與模型
+    pub workspace_root: PathBuf,         // 工作區絕對路徑
+    pub trust_label: String,             // "trusted" / "untrusted"
+    pub sandbox: SandboxPolicy,          // 沙箱等級
+    pub active_command: Option&lt;String&gt;,  // 觸發的自訂命令名稱 (若有)
+    pub active_skill: Option&lt;String&gt;,    // 啟用的技能名稱 (若有)
+    pub attachments: Vec&lt;PromptAttachment&gt;, // 解析出來的檔案 / 目錄清單
+    pub pending_shell_commands: Vec&lt;String&gt;, // 待審批的 Shell 指令
+    pub final_prompt: String,            // 最終給 LLM 的完整文本
 }</code></pre>
                     </div>
                 </div>
 
-                <h2>四個處理階段</h2>
+                <div class="callout callout-tip">
+                    <div class="callout-title">設計亮點</div>
+                    <p><code>attachments</code> 欄位記錄了所有被注入的檔案，這讓下游的 Provider 適配器能夠判斷哪些附件需要轉為 Base64 多模態內容 (例如圖片)，哪些只是純文字。</p>
+                </div>
 
-                <h3>階段 1：命令解析</h3>
-                <p>如果輸入以 <code>/</code> 開頭，將其解析為命令調用，展開命令模板並替換 <code>{{args}}</code>。</p>
+                <h2>2. assemble_prompt()：四階段管線</h2>
+                <p><code>assemble_prompt()</code> 是整個引擎的入口函數。它接收一個 <code>PromptRequest</code>，經歷<strong>四個階段</strong>的轉換後，輸出結構化的 <code>PromptAssembly</code>。</p>
 
-                <h3>階段 2：檔案注入 <code>@{...}</code></h3>
-                <p>掃描文本中的 <code>@{path}</code> 標記，將對應檔案的內容內嵌到提示詞中：</p>
-                <ul>
-                    <li>文字檔案：前 400 行或 32KB，帶行號</li>
-                    <li>目錄：列出最多 200 個檔案</li>
-                    <li>二進位檔案（png/jpg/pdf）：生成佔位標記，由供應商適配器處理</li>
-                </ul>
+                <h3>階段 1：命令 (Command) 解析</h3>
+                <p>如果使用者輸入以 <code>/</code> 開頭（例如 <code>/review src/main.rs</code>），系統會將它解析為自訂命令調用：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">prompt.rs 第 59-73 行 — 命令識別</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">let invocation = parse_command_invocation(request.user_input);
+let (active_command, command_text) = match invocation {
+    Some((name, args, full_invocation)) =&gt; {
+        // 從 CommandCatalog 中查找命令定義
+        let command = request.commands.find(&amp;name).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotFound,
+                format!("unknown command: {}", name))
+        })?;
+        // 渲染命令模板，將 {{args}} 替換為使用者參數
+        let rendered = render_command_prompt(
+            command, &amp;args, &amp;full_invocation, request.workspace
+        )?;
+        (Some(command.name.clone()), rendered)
+    }
+    None =&gt; (None, request.user_input.to_string()),
+    // 不是斜線命令？直接透傳原始輸入
+};</code></pre>
+                    </div>
+                </div>
 
-                <h3>階段 3：Shell 審批 <code>!{...}</code></h3>
-                <p><code>!{git status}</code> 被轉換為 <code>&lt;shell-approval required="true"&gt;git status&lt;/shell-approval&gt;</code>，並加入待審批清單。</p>
+                <h3>階段 2：檔案注入 @{...} 與截斷防護</h3>
+                <p>使用者可以寫 <code>@{src/agent.rs}</code>，引擎會自動把檔案內容塞進提示詞中。為了防止 Context Window 超載，GemiClawdex 設定了嚴格的截斷防護：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">prompt.rs — 截斷防護常數 + read_text_preview()</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">const TEXT_INJECTION_LINE_LIMIT: usize = 400;    // 最多注入 400 行
+const TEXT_INJECTION_BYTE_LIMIT: usize = 32 * 1024; // 最多注入 32KB
+
+fn read_text_preview(path: &amp;Path) -&gt; io::Result&lt;String&gt; {
+    let bytes = fs::read(path)?;
+    if looks_binary(&amp;bytes) {
+        return Err(/* 擋下二進位檔 */);
+    }
+
+    let text = String::from_utf8_lossy(&amp;bytes);
+    let mut out = String::new();
+    let mut total_bytes = 0usize;
+
+    // 注入時自動帶行號，方便 LLM 精準定位要編輯的位置！
+    for (index, line) in text.lines()
+        .take(TEXT_INJECTION_LINE_LIMIT).enumerate()
+    {
+        total_bytes += line.len();
+        if total_bytes &gt; TEXT_INJECTION_BYTE_LIMIT { break; }
+        out.push_str(&amp;format!("{}\t{}\n", index + 1, line));
+    }
+    Ok(out.trim_end().to_string())
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="callout callout-warning">
+                    <div class="callout-title">二進位擋截演算</div>
+                    <p><code>looks_binary()</code> 函數取前 1024 bytes 樣本，如果包含 <code>\0</code> 就直接判定為二進位。若非 null 的控制字元 (byte &lt; 7 或 14-31) 超過 10%，也判定為二進位。這避免了 AI 誤讀圖檔或編譯產物。</p>
+                </div>
+
+                <h3>階段 3：Shell 審批 !{...}</h3>
+                <p>當模板中出現 <code>!{git status}</code> 時，系統不會直接執行，而是標記為待審批：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">prompt.rs — sanitize_shell_blocks()</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">let command = span.body.trim().to_string();
+pending.push(command.clone());  // 壓入待審批清單
+
+// 轉換成 XML 標籤讓 LLM 知道這是需要審批的動作
+rendered.push_str(&amp;format!(
+    "&lt;shell-approval required=\"true\"&gt;{}&lt;/shell-approval&gt;",
+    command
+));</code></pre>
+                    </div>
+                </div>
 
                 <h3>階段 4：最終組裝</h3>
-                <p>將所有內容按以下順序拼接為最終提示詞：</p>
+                <p>最後，引擎將所有資訊按固定順序拼接。注意它是如何把執行環境的元數據 (Trust, Sandbox, Provider) 直接告訴 LLM 的——這讓模型能根據當前安全邊界自我調整行為：</p>
                 <div class="code-window">
-                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">最終提示詞結構</span></div>
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">prompt.rs — 組裝順序</span></div>
                     <div class="window-body">
-<pre><code class="language-text"># Runtime
-Provider: Google Gemini (gemini-2.5-pro)
-Sandbox: workspace-write
-Trust: trusted
-Workspace: /home/user/my-project
-
-# Repository Instructions
-## AGENTS.md
-（倉庫指令內容）
-
-# Loaded Skill
-Name: code-review
-（技能內容）
-
-# Task
-（經過展開的使用者任務）
-
-# Pending Shell Commands
-- git status</code></pre>
+<pre><code class="language-text">┌──────────────────────────────────────────────┐
+│ # Runtime                                    │ ← 環境元數據
+│ Provider: Google Gemini (gemini-2.5-pro)      │
+│ Sandbox: workspace-write                      │
+│ Trust: trusted                                │
+├──────────────────────────────────────────────┤
+│ # Repository Instructions                     │ ← AGENTS.md / GCD.md 內容
+│ ## AGENTS.md                                  │
+│ （倉庫指令內容）                               │
+├──────────────────────────────────────────────┤
+│ # Loaded Skill                                │ ← 選中的技能 (若有)
+│ Name: code-review                             │
+│ （技能內容）                                   │
+├──────────────────────────────────────────────┤
+│ # Task                                        │ ← 經展開的使用者任務
+│ （包含 @{file} 注入與 !{cmd} 標記）            │
+├──────────────────────────────────────────────┤
+│ # Pending Shell Commands                      │ ← 待審批清單
+│ - git status                                  │
+└──────────────────────────────────────────────┘</code></pre>
                     </div>
                 </div>
 
                 <div class="callout callout-info">
                     <div class="callout-title">為什麼 Runtime 資訊要放在提示詞裡？</div>
-                    <p>將供應商、沙箱、信任狀態等資訊注入提示詞，讓 LLM 能根據當前環境調整行為。例如，如果 LLM 看到 <code>Sandbox: read-only</code>，它就知道不該嘗試寫入檔案。</p>
+                    <p>將供應商、沙箱、信任狀態等資訊注入提示詞，讓 LLM 能根據當前環境調整行為。例如，如果 LLM 看到 <code>Sandbox: read-only</code>，它就知道不該嘗試寫入檔案。這是 Harness Engineering 中「<strong>透過提示詞控制行為邊界</strong>」的核心概念。</p>
                 </div>
+
+                <h2>3. Balanced Span Parser：自製微型解析器</h2>
+                <p>GemiClawdex 沒有依賴 regex crate，而是自己實作了一個平衡括號解析器 <code>find_balanced_spans()</code>，用於解析 <code>@{...}</code> 和 <code>!{...}</code> 語法。這個函數位於第 495 行，它追蹤大括號的巢狀深度 (<code>depth</code>)，確保 <code>@{path/to/{nested}/file}</code> 這類路徑也能正確解析。</p>
 
                 <div class="chapter-nav">
                     <a href="#ch11" class="btn btn-outline" onclick="navigateTo('ch11')">&larr; 上一章</a>
@@ -1296,57 +1373,31 @@ Name: code-review
         <section id="ch13" class="chapter">
             <div class="chapter-header">
                 <span class="chapter-number">第十三章</span>
-                <h1>Agent 迴圈 (Agent Loop)</h1>
-                <p class="chapter-desc">程式碼位置：<code>agent.rs</code>（395 行）——整個系統的心臟，LLM 與工具交互的核心迴圈。</p>
+                <h1>Agent Loop 狀態機 — 代理的靈魂</h1>
+                <p class="chapter-desc">程式碼位置：<code>agent.rs</code>（396 行）——prompt → API → tool_calls → execute → loop。這是一切自主行為發生的引擎。</p>
             </div>
             <div class="content-body">
-                <h2>什麼是 Agent Loop？</h2>
-                <p>Agent Loop 是 AI 代理的核心執行模式。它不是「問一次答一次」的聊天機器人，而是一個<strong>自主迴圈</strong>：</p>
-                <div class="agent-loop-diagram">
-                    <div class="loop-step loop-active">
-                        <div class="loop-num">1</div>
-                        <div class="loop-content">
-                            <h4>送出提示詞</h4>
-                            <p>將組裝好的提示詞送給 LLM API</p>
-                        </div>
-                    </div>
-                    <div class="loop-arrow">&darr;</div>
-                    <div class="loop-step">
-                        <div class="loop-num">2</div>
-                        <div class="loop-content">
-                            <h4>解析回應</h4>
-                            <p>檢查回應中是否包含工具呼叫</p>
-                        </div>
-                    </div>
-                    <div class="loop-arrow">&darr;</div>
-                    <div class="loop-step">
-                        <div class="loop-num">3</div>
-                        <div class="loop-content">
-                            <h4>執行工具</h4>
-                            <p>執行 read_file、write_file、shell 等工具</p>
-                        </div>
-                    </div>
-                    <div class="loop-arrow">&darr;</div>
-                    <div class="loop-step">
-                        <div class="loop-num">4</div>
-                        <div class="loop-content">
-                            <h4>回饋結果</h4>
-                            <p>將工具結果作為新訊息回饋給 LLM</p>
-                        </div>
-                    </div>
-                    <div class="loop-arrow loop-back">&uarr; 回到步驟 1（直到無工具呼叫或達到上限）</div>
-                </div>
 
-                <h2>核心程式碼走讀</h2>
+                <h2>什麼讓 Agent 成為 Agent？</h2>
+                <p>一個普通的 CLI 工具只做一件事就退出。但 AI Agent 有一個<strong>迴圈 (Loop)</strong>——它會反覆向 LLM 發送請求、解析工具呼叫、在本地執行、把結果餵回去，直到 LLM 判斷任務完成。</p>
+
+                <h2>1. run_agent()：神聖迴圈完整拆解</h2>
+                <p>這是整套產品的核心函數，位於 <code>agent.rs</code> 第 89 行。我們來逐步拆解：</p>
+
                 <div class="code-window">
-                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">agent.rs — run_agent()</span></div>
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">agent.rs 第 89-148 行 — Agent 思維迴圈</span></div>
                     <div class="window-body">
-<pre><code class="language-rust">pub async fn run_agent(options: AgentRunOptions) -> anyhow::Result&lt;AgentRunResult&gt; {
+<pre><code class="language-rust">pub async fn run_agent(options: AgentRunOptions)
+    -&gt; anyhow::Result&lt;AgentRunResult&gt;
+{
+    // ① 初始化工具箱與安全上下文
     let tools = builtin_tools();
     let tool_ctx = ToolContext {
         workspace_root: options.workspace_root.clone(),
         sandbox: options.sandbox.clone(),
     };
+
+    // ② 用 Vec 模擬對話歷史 — Agent 的短期記憶
     let mut messages = vec![AgentMessage {
         role: "user".to_string(),
         content: options.initial_prompt.clone(),
@@ -1354,55 +1405,185 @@ Name: code-review
         tool_call_id: None,
     }];
 
-    for turn in 0..options.max_turns {
-        // 1. 呼叫供應商 API
-        let response = call_provider_api(&options, &messages, &tools).await?;
+    let mut tool_records = Vec::new();
+    let mut final_response = String::new();
 
-        // 2. 檢查是否有工具呼叫
+    // ③ 啟動回合系統，防止無限遞迴 (預設上限 10 回合)
+    for turn in 0..options.max_turns {
+
+        // 步驟 A：呼叫大模型 API
+        let response = call_provider_api(
+            &amp;options, &amp;messages, &amp;tools
+        ).await?;
+
+        // 步驟 B：LLM 是否決定要呼叫工具？
         if let Some(ref calls) = response.tool_calls {
             messages.push(response.clone());
 
-            // 3. 逐一執行工具
             for call in calls {
-                let result = execute_tool_call(call, &tools, &tool_ctx).await;
-                // 4. 將工具結果回饋
+                // 步驟 C：在本地執行工具 (帶 Sandbox 控制)
+                let result = execute_tool_call(
+                    call, &amp;tools, &amp;tool_ctx
+                ).await;
+
+                tool_records.push(ToolInvocationRecord {
+                    turn,
+                    tool_name: call.name.clone(),
+                    arguments: call.arguments.clone(),
+                    result: result.clone(),
+                });
+
+                // 步驟 D：將工具結果掛載為 message 餵回 LLM
                 messages.push(AgentMessage {
                     role: "tool".to_string(),
-                    content: serde_json::to_string(&result).unwrap_or_default(),
+                    content: serde_json::to_string(&amp;result)
+                        .unwrap_or_default(),
                     tool_calls: None,
                     tool_call_id: Some(call.id.clone()),
                 });
             }
+            // → 進入下一輪 for 迴圈
         } else {
-            // 沒有工具呼叫 = 最終回應，跳出迴圈
+            // 沒有工具呼叫 = LLM 認為任務完成
             final_response = response.content.clone();
+            messages.push(response);
             break;
         }
     }
-    // ...
+
+    Ok(AgentRunResult {
+        turns_used: tool_records.len().max(1),
+        final_response,
+        messages,
+        tool_invocations: tool_records,
+    })
 }</code></pre>
                     </div>
                 </div>
 
-                <h2>安全上限</h2>
-                <p><code>DEFAULT_MAX_TURNS = 10</code>——無論如何，Agent 最多執行 10 輪。這是一個安全閥門，防止無限迴圈消耗 API 額度。</p>
+                <div class="callout callout-info">
+                    <div class="callout-title">迴圈的終止條件</div>
+                    <p>Agent 迴圈有<strong>兩個</strong>退出條件：(1) LLM 回傳純文字、不請求工具 → <code>break</code>；(2) 回合數達上限 <code>max_turns</code> → 自動跳出。這防止了惡意或失控的 LLM 無限循環呼叫工具。</p>
+                </div>
 
-                <h2>三大供應商適配器</h2>
-                <p><code>call_provider_api()</code> 根據供應商 family 分派到不同的適配器：</p>
-                <div class="comparison-table">
-                    <table>
-                        <thead><tr><th>Family</th><th>適配器</th><th>工具呼叫支援</th></tr></thead>
-                        <tbody>
-                            <tr><td>Gemini</td><td><code>call_gemini_api()</code></td><td>完整（functionCall 解析）</td></tr>
-                            <tr><td>OpenAI Compatible</td><td><code>call_openai_api()</code></td><td>基本（chat completions）</td></tr>
-                            <tr><td>Anthropic</td><td><code>call_anthropic_api()</code></td><td>基本（messages API）</td></tr>
-                        </tbody>
-                    </table>
+                <h2>2. 多供應商路由：call_provider_api()</h2>
+                <p>GemiClawdex 的 Agent Loop 並不綁定單一 LLM。call_provider_api 使用 Rust 的 <code>match</code> 語法做供應商路由：</p>
+
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">agent.rs 第 156-172 行 — 供應商路由</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">async fn call_provider_api(
+    options: &amp;AgentRunOptions,
+    messages: &amp;[AgentMessage],
+    tools: &amp;[Box&lt;dyn Tool&gt;],
+) -&gt; anyhow::Result&lt;AgentMessage&gt; {
+    match options.provider.family {
+        ProviderFamily::Gemini      =&gt; call_gemini_api(options, messages, tools).await,
+        ProviderFamily::OpenAiCompatible =&gt; call_openai_api(options, messages, tools).await,
+        ProviderFamily::Anthropic   =&gt; call_anthropic_api(options, messages, tools).await,
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>3. Gemini 協議適配器深入解析</h2>
+                <p>Gemini 的 Tool Calling 協議不同於 OpenAI。最關鍵的差異是——<strong>工具執行結果必須用 "user" 角色傳回</strong>：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">agent.rs — Gemini 角色映射 (第 186-200 行)</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">let contents: Vec&lt;Value&gt; = messages.iter().map(|msg| {
+    let role = match msg.role.as_str() {
+        "user"                  =&gt; "user",
+        "assistant" | "model"   =&gt; "model",
+        "tool" =&gt; "user",
+        // ↑ 【關鍵】Gemini 把 Tool Results 當作 user 訊息！
+        _ =&gt; "user",
+    };
+    serde_json::json!({
+        "role": role,
+        "parts": [{ "text": msg.content }]
+    })
+}).collect();</code></pre>
+                    </div>
+                </div>
+
+                <p>Gemini 回應中的 Tool Calls 也以獨特的 <code>functionCall</code> 格式出現，解析器需要遍歷 <code>parts</code> 陣列分離文字與函數呼叫：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">agent.rs — parse_gemini_response() (第 237 行)</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">fn parse_gemini_response(resp: &amp;Value) -&gt; anyhow::Result&lt;AgentMessage&gt; {
+    let parts = resp["candidates"][0]["content"]["parts"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("No parts in response"))?;
+
+    let mut text_parts = Vec::new();
+    let mut tool_calls = Vec::new();
+
+    for (idx, part) in parts.iter().enumerate() {
+        // 文字部分
+        if let Some(text) = part["text"].as_str() {
+            text_parts.push(text.to_string());
+        }
+        // 函數呼叫部分
+        if let Some(fc) = part.get("functionCall") {
+            let name = fc["name"].as_str().unwrap_or("").to_string();
+            let args = fc.get("args").cloned()
+                .unwrap_or(Value::Object(Default::default()));
+            tool_calls.push(ToolCall {
+                id: format!("call_{}", idx),
+                name,
+                arguments: args,
+            });
+        }
+    }
+
+    Ok(AgentMessage {
+        role: "assistant".to_string(),
+        content: text_parts.join(""),
+        tool_calls: if tool_calls.is_empty() {
+            None
+        } else {
+            Some(tool_calls)
+        },
+        tool_call_id: None,
+    })
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>4. 工具分派 execute_tool_call()</h2>
+                <p>每一個工具的呼叫都是安全的——失敗不會讓 Agent 崩潰，而是把錯誤訊息吐回給 LLM，讓它自己除錯：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">agent.rs 第 381 行</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">async fn execute_tool_call(
+    call: &amp;ToolCall,
+    tools: &amp;[Box&lt;dyn Tool&gt;],
+    ctx: &amp;ToolContext,
+) -&gt; Value {
+    let tool = tools.iter().find(|t| t.name() == call.name);
+    match tool {
+        Some(t) =&gt; match t.execute(call.arguments.clone(), ctx).await {
+            Ok(result) =&gt; result,
+            Err(e) =&gt; serde_json::json!({ "error": e.to_string() }),
+            //          ↑ 工具失敗 → 把 error 吐回給 AI 就好
+        },
+        None =&gt; serde_json::json!({
+            "error": format!("Unknown tool: {}", call.name)
+        }),
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="callout callout-tip">
+                    <div class="callout-title">Harness Engineering 設計原則</div>
+                    <p>注意 <code>execute_tool_call</code> 如何讓工具的<strong>錯誤也回歸到 LLM 上下文</strong>中。這讓 AI 有機會「自我修復」——例如當 <code>write_file</code> 被沙箱阻擋時，LLM 能看到錯誤訊息並換一種策略。</p>
                 </div>
 
                 <div class="chapter-nav">
                     <a href="#ch12" class="btn btn-outline" onclick="navigateTo('ch12')">&larr; 上一章</a>
-                    <a href="#ch14" class="btn btn-outline" onclick="navigateTo('ch14')">下一章：工具系統 &rarr;</a>
+                    <a href="#ch14" class="btn btn-outline" onclick="navigateTo('ch14')">下一章：工具系統與沙箱 &rarr;</a>
                 </div>
             </div>
         </section>
@@ -1411,57 +1592,218 @@ Name: code-review
         <section id="ch14" class="chapter">
             <div class="chapter-header">
                 <span class="chapter-number">第十四章</span>
-                <h1>工具系統 (Tool System)</h1>
-                <p class="chapter-desc">程式碼位置：<code>tools.rs</code>（346 行）——定義 Tool trait 和五個內建工具。</p>
+                <h1>工具系統 (Tool System) 的安全實作</h1>
+                <p class="chapter-desc">程式碼位置：<code>tools.rs</code>（347 行）——賦予 AI 能力的同時，畫下鋼鐵般的防線。</p>
             </div>
             <div class="content-body">
-                <h2>Tool Trait：統一的工具介面</h2>
+
+                <h2>概觀：五個內建工具</h2>
+                <p>GemiClawdex 的預設工具箱包含五件武器，每一件都受到 <code>SandboxPolicy</code> 的嚴格管控：</p>
+                <div class="tool-cards">
+                    <div class="tool-card">
+                        <div class="tool-name">read_file</div>
+                        <div class="tool-desc">讀取工作區內的檔案全文。</div>
+                        <div class="tool-sandbox">🔒 讀取也有邊界：路徑必須在 workspace 內。</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-name">write_file</div>
+                        <div class="tool-desc">建立或覆寫工作區內的檔案。</div>
+                        <div class="tool-sandbox">🔒 被 ReadOnly 沙箱封鎖；WorkspaceWrite 僅許可工作區內寫入。</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-name">list_dir</div>
+                        <div class="tool-desc">列出目錄內容，回傳檔案名與類型。</div>
+                        <div class="tool-sandbox">🔓 純讀取操作，所有沙箱等級皆允許。</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-name">shell</div>
+                        <div class="tool-desc">執行 Shell 指令（如 cargo build、git status）。</div>
+                        <div class="tool-sandbox">🔒 被 ReadOnly 和 Container 兩種沙箱封鎖。最高權限工具。</div>
+                    </div>
+                    <div class="tool-card">
+                        <div class="tool-name">search_files</div>
+                        <div class="tool-desc">用 ripgrep/grep 做模式搜尋（支援正規表達式）。</div>
+                        <div class="tool-sandbox">🔓 純讀取操作，所有沙箱等級皆允許。</div>
+                    </div>
+                </div>
+
+                <h2>1. Tool Trait 介面設計</h2>
+                <p>在 Rust 中，我們利用 <code>async_trait</code> 設計出簡潔有力的 <code>Tool</code> 介面。如果你要為 AI 新增一種超能力（例如「搜尋網頁」或「執行 SQL」），只需要實作這個 Trait：</p>
                 <div class="code-window">
-                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">tools.rs — Tool trait</span></div>
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">tools.rs 第 20-34 行 — Tool trait</span></div>
                     <div class="window-body">
 <pre><code class="language-rust">#[async_trait::async_trait]
 pub trait Tool: Send + Sync {
-    fn name(&self) -> &str;                    // 機器可讀名稱
-    fn description(&self) -> &str;             // 人類可讀描述
-    fn parameters_schema(&self) -> Value;      // JSON Schema
+    /// 機器可讀名稱，用於 function-call 的 payload
+    fn name(&amp;self) -&gt; &amp;str;
+
+    /// 人類可讀的一行描述，會被塞進系統提示詞
+    fn description(&amp;self) -&gt; &amp;str;
+
+    /// JSON Schema，告訴 LLM 要傳什麼參數進來
+    fn parameters_schema(&amp;self) -&gt; Value;
+
+    /// 真正在本地端執行的邏輯！擁有 ToolContext 做安全控制
     async fn execute(
-        &self, params: Value, ctx: &ToolContext
-    ) -> anyhow::Result&lt;Value&gt;;                // 執行並回傳 JSON
+        &amp;self, params: Value, ctx: &amp;ToolContext
+    ) -&gt; anyhow::Result&lt;Value&gt;;
 }</code></pre>
                     </div>
                 </div>
 
-                <h2>五個內建工具</h2>
-                <div class="tool-cards">
-                    <div class="tool-card">
-                        <div class="tool-name">read_file</div>
-                        <div class="tool-desc">讀取工作區內的檔案內容。自動檢查路徑是否在工作區邊界內。</div>
-                        <div class="tool-sandbox">沙箱：所有等級皆可用</div>
-                    </div>
-                    <div class="tool-card">
-                        <div class="tool-name">write_file</div>
-                        <div class="tool-desc">建立或覆寫檔案。自動建立父目錄。受沙箱策略控制。</div>
-                        <div class="tool-sandbox">沙箱：ReadOnly 阻擋 / 非 Off 限制在工作區內</div>
-                    </div>
-                    <div class="tool-card">
-                        <div class="tool-name">list_dir</div>
-                        <div class="tool-desc">列出目錄內容，回傳檔案名稱、是否為目錄/檔案。</div>
-                        <div class="tool-sandbox">沙箱：所有等級皆可用</div>
-                    </div>
-                    <div class="tool-card">
-                        <div class="tool-name">shell</div>
-                        <div class="tool-desc">在工作區目錄下執行 Shell 命令。回傳 stdout、stderr、exit_code。</div>
-                        <div class="tool-sandbox">沙箱：ReadOnly 和 Container 阻擋</div>
-                    </div>
-                    <div class="tool-card">
-                        <div class="tool-name">search_files</div>
-                        <div class="tool-desc">正則表達式搜尋。優先使用 ripgrep，回退到 grep。最多回傳 50 筆結果。</div>
-                        <div class="tool-sandbox">沙箱：所有等級皆可用</div>
+                <div class="callout callout-tip">
+                    <div class="callout-title">Trait Object 動態分派</div>
+                    <p><code>builtin_tools()</code> 回傳 <code>Vec&lt;Box&lt;dyn Tool&gt;&gt;</code>，這是 Rust 的 trait object 模式。它讓我們在執行期間可以動態選擇工具，而不需要用泛型把整個 Agent Loop 的型別搞得非常複雜。</p>
+                </div>
+
+                <h2>2. 邊界檢查 ToolContext::is_within_workspace()</h2>
+                <p>AI 不可以隨便碰使用者的 <code>/etc/</code> 或 <code>~/.ssh/</code>。<code>ToolContext</code> 實作了路徑邊界守衛：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">tools.rs 第 43-53 行 — 路徑安全守衛</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">impl ToolContext {
+    pub fn is_within_workspace(&amp;self, path: &amp;Path) -&gt; bool {
+        // canonicalize 會解析 ../ 與 symlink，防止路徑穿越攻擊
+        let Ok(canonical) = fs::canonicalize(path) else {
+            return false;  // 路徑不存在 → 直接擋下
+        };
+        let Ok(root) = fs::canonicalize(&amp;self.workspace_root) else {
+            return false;
+        };
+        // 嚴格判斷：正規化後的路徑是否以 workspace root 開頭
+        canonical.starts_with(root)
+    }
+
+    pub fn resolve_path(&amp;self, raw: &amp;str) -&gt; PathBuf {
+        let p = PathBuf::from(raw);
+        if p.is_absolute() { p }
+        else { self.workspace_root.join(p) }
+        // 相對路徑一律基於 workspace root 展開
+    }
+}</code></pre>
                     </div>
                 </div>
 
-                <h2>ToolContext：共享上下文</h2>
-                <p>每次工具調用都會收到 <code>ToolContext</code>，提供工作區路徑和沙箱策略。<code>is_within_workspace()</code> 使用 <code>fs::canonicalize()</code> 解析符號連結，防止路徑穿越攻擊。</p>
+                <div class="callout callout-warning">
+                    <div class="callout-title">防禦 Symlink 穿越攻擊</div>
+                    <p>如果攻擊者在工作區內放置一個指向 <code>/etc/shadow</code> 的 symlink，<code>canonicalize()</code> 會解析成真實絕對路徑，然後被 <code>starts_with(root)</code> 擋下。這是檔案系統安全的基本功。</p>
+                </div>
+
+                <h2>3. WriteFileTool：層層防護網展示</h2>
+                <p>讓我們拆解 <code>write_file</code> 工具的完整執行路徑——從 LLM 發出寫入請求到檔案真正落盤：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">tools.rs — WriteFileTool::execute() (第 132 行)</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">async fn execute(&amp;self, params: Value, ctx: &amp;ToolContext)
+    -&gt; anyhow::Result&lt;Value&gt;
+{
+    // 防護 1：Sandbox 等級檢查
+    if matches!(ctx.sandbox, SandboxPolicy::ReadOnly) {
+        anyhow::bail!("write_file is blocked by read-only sandbox policy");
+    }
+
+    let path_str = params["path"].as_str().unwrap_or("");
+    let content  = params["content"].as_str().unwrap_or("");
+    let path = ctx.resolve_path(path_str);
+
+    // 防護 2：路徑邊界檢查 (除非沙箱完全關閉)
+    if !matches!(ctx.sandbox, SandboxPolicy::Off)
+        &amp;&amp; !ctx.is_within_workspace(&amp;path)
+    {
+        anyhow::bail!("Path is outside the workspace: {}", path.display());
+    }
+
+    // 安全通過 — 執行寫入
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;  // 自動建立中間資料夾
+    }
+    fs::write(&amp;path, content)?;
+
+    Ok(serde_json::json!({
+        "path": path.display().to_string(),
+        "bytes_written": content.len()
+    }))
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>4. ShellTool：最高權限動作</h2>
+                <p><code>shell</code> 是權限最高的工具——它能執行任意 Shell 命令。因此受到最嚴格的管控：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">tools.rs — ShellTool::execute() (第 222 行)</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">async fn execute(&amp;self, params: Value, ctx: &amp;ToolContext)
+    -&gt; anyhow::Result&lt;Value&gt;
+{
+    // 被 ReadOnly 與 Container 兩種沙箱模式封鎖
+    if matches!(ctx.sandbox,
+        SandboxPolicy::ReadOnly | SandboxPolicy::Container)
+    {
+        anyhow::bail!("shell is blocked by sandbox policy: {}",
+            ctx.sandbox.as_str());
+    }
+
+    let cmd_str = params["command"].as_str().unwrap_or("");
+
+    // 使用 OS 原生 sh，並鎖定工作目錄為 workspace root
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(cmd_str)
+        .current_dir(&amp;ctx.workspace_root) // ← 不允許逃逸
+        .output()?;
+
+    Ok(serde_json::json!({
+        "exit_code": output.status.code().unwrap_or(-1),
+        "stdout": String::from_utf8_lossy(&amp;output.stdout).to_string(),
+        "stderr": String::from_utf8_lossy(&amp;output.stderr).to_string(),
+    }))
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2>5. SearchFilesTool：ripgrep 降級策略</h2>
+                <p>搜尋檔案工具優先使用 <code>ripgrep (rg)</code>，如果系統未安裝則自動降級為 BSD <code>grep</code>。這是一個很好的「漸進增強」設計：</p>
+                <div class="code-window">
+                    <div class="window-header"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="window-title">tools.rs — 降級策略 (第 280 行)</span></div>
+                    <div class="window-body">
+<pre><code class="language-rust">let mut cmd = if which_exists("rg") {
+    // 優先：ripgrep，速度快 10 倍以上
+    let mut c = Command::new("rg");
+    c.arg("--no-heading").arg("--line-number").arg("--max-count=50");
+    if let Some(glob) = include { c.arg("--glob").arg(glob); }
+    c.arg(pattern).arg(&amp;resolved);
+    c
+} else {
+    // 降級：系統內建 grep
+    let mut c = Command::new("grep");
+    c.arg("-rn").arg("--max-count=50");
+    if let Some(glob) = include { c.arg("--include").arg(glob); }
+    c.arg(pattern).arg(&amp;resolved);
+    c
+};</code></pre>
+                    </div>
+                </div>
+
+                <h2>6. 沙箱策略決策矩陣</h2>
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr><th>工具 \ 沙箱</th><th>Off</th><th>ReadOnly</th><th>WorkspaceWrite</th><th>Container</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>read_file</code></td><td class="ok">✓ 任意</td><td class="ok">✓ 工作區</td><td class="ok">✓ 工作區</td><td class="ok">✓ 工作區</td></tr>
+                            <tr><td><code>write_file</code></td><td class="ok">✓ 任意</td><td class="no">✗ 封鎖</td><td class="warn">✓ 工作區</td><td class="warn">✓ 工作區</td></tr>
+                            <tr><td><code>list_dir</code></td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+                            <tr><td><code>shell</code></td><td class="ok">✓</td><td class="no">✗ 封鎖</td><td class="ok">✓</td><td class="no">✗ 封鎖</td></tr>
+                            <tr><td><code>search_files</code></td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="callout callout-info">
+                    <div class="callout-title">如何新增自訂工具？</div>
+                    <p>在 <code>tools.rs</code> 中新增一個 struct 並實作 <code>Tool</code> trait，然後把它加入 <code>builtin_tools()</code> 的 Vec 中即可。Agent Loop 會自動在 API 請求中宣告新工具，LLM 就能呼叫它了。這就是 Trait-based 設計的強大之處。</p>
+                </div>
 
                 <div class="chapter-nav">
                     <a href="#ch13" class="btn btn-outline" onclick="navigateTo('ch13')">&larr; 上一章</a>
