@@ -1,7 +1,7 @@
 <div class="chapter-header">
     <span class="chapter-number">Tools</span>
     <h1>工具和權限</h1>
-    <p class="chapter-desc">AI 模型不會自己讀檔案、跑指令。這一章介紹 GCD 的 8 個內建工具，以及系統怎麼控制這些工具能做什麼。</p>
+    <p class="chapter-desc">AI 模型不會自己讀檔案、跑指令。這一章介紹 GCD 的 11 個內建工具，以及系統怎麼控制這些工具能做什麼。</p>
 </div>
 
 <div class="content-body">
@@ -79,6 +79,24 @@
                     <td><code>spawn_agent</code></td>
                     <td>把子任務交給 sub-agent。</td>
                     <td>中到高，會展開另一條 代理迴圈。</td>
+                </tr>
+                <tr>
+                    <td>記憶</td>
+                    <td><code>memory</code></td>
+                    <td>讀寫雙重記憶系統（MEMORY.md + USER.md），讓 agent 跨 session 記住環境觀察與使用者偏好。</td>
+                    <td>低，只操作 <code>.gcd/</code> 下的記憶檔案，寫入前執行安全掃描。</td>
+                </tr>
+                <tr>
+                    <td>學習</td>
+                    <td><code>skill_manager</code></td>
+                    <td>runtime 技能 CRUD：agent 成功完成任務後，可自行將做法固化為可重用 skill。</td>
+                    <td>低到中，只操作 <code>~/.gcd/skills/</code>，寫入前執行安全掃描防注入。</td>
+                </tr>
+                <tr>
+                    <td>回溯</td>
+                    <td><code>session_search</code></td>
+                    <td>搜尋過往 session JSONL 紀錄，回溯類似問題的解法。</td>
+                    <td>低，純讀取操作。</td>
                 </tr>
             </tbody>
         </table>
@@ -290,6 +308,32 @@ permission 解的是「誰拍板」，
         </table>
     </div>
 
+    <h2>Hermes-inspired 記憶與學習工具</h2>
+    <p>參考 <a href="https://github.com/NousResearch/hermes-agent">hermes-agent</a> 的設計，GCD 新增了三個讓 agent 從「工具使用者」升級為「自我改進的學習者」的工具。這三者都不操作工作區原始碼，而是操作 <code>~/.gcd/</code> 下的持久知識檔案。</p>
+
+    <div class="feature-grid compact">
+        <article class="feature-card revealable">
+            <div class="feature-num">H1</div>
+            <h3><code>memory</code>：雙重記憶</h3>
+            <p><code>agent</code> store（MEMORY.md）記錄環境觀察與專案慣例；<code>user</code> store（USER.md）記錄使用者偏好與工作習慣。每次執行時自動以 <code>&lt;memory-context&gt;</code> fenced block 注入 prompt，防止模型將回憶當成新指令。</p>
+        </article>
+        <article class="feature-card revealable">
+            <div class="feature-num">H2</div>
+            <h3><code>skill_manager</code>：技能學習迴圈</h3>
+            <p>支援 <code>create</code>、<code>edit</code>、<code>patch</code>、<code>delete</code>、<code>write_file</code>、<code>remove_file</code> 六個 action。只能修改 user-created skills（<code>~/.gcd/skills/</code>），bundled 與 project-level skills 為唯讀。</p>
+        </article>
+        <article class="feature-card revealable">
+            <div class="feature-num">H3</div>
+            <h3><code>session_search</code>：對話回溯</h3>
+            <p>搜尋 <code>~/.gcd/sessions/</code> 中的 JSONL 歷史紀錄，關鍵字全部匹配後回傳 snippet（match position ± 200 chars context），按修改時間排序，預設最多 5 筆結果。</p>
+        </article>
+    </div>
+
+    <div class="callout callout-warning revealable">
+        <div class="callout-title">這三個工具的安全機制</div>
+        <p><code>memory</code> 與 <code>skill_manager</code> 的所有寫入操作都會先經過安全掃描：檢查 prompt injection pattern（如 <code>ignore previous instructions</code>）、exfiltration pattern（如 <code>curl ... $API_KEY</code>）、以及 invisible unicode characters（zero-width space、directional overrides 等）。掃描不通過就直接拒絕寫入。</p>
+    </div>
+
     <h2>實況檢查：工具層哪些地方已經很完整，哪些還不能寫滿</h2>
     <div class="comparison-table">
         <table>
@@ -320,6 +364,18 @@ permission 解的是「誰拍板」，
                 <tr>
                     <td>Coordinator / sub-agent</td>
                     <td>已能工作，但應以 有限制的委派 心智理解，而非完整多代理平台。</td>
+                </tr>
+                <tr>
+                    <td>雙重記憶系統（Hermes-inspired）</td>
+                    <td>MEMORY.md + USER.md 讀寫已接入主要流程，prompt 注入使用 fenced block，寫入前含安全掃描。屬於 <code>Implemented</code>。</td>
+                </tr>
+                <tr>
+                    <td>技能學習迴圈（Hermes-inspired）</td>
+                    <td>6 個 action 全部可用，含安全掃描。YAML frontmatter 與 progressive disclosure 已接入 prompt 組裝。屬於 <code>Implemented</code>。</td>
+                </tr>
+                <tr>
+                    <td>Session 搜尋（Hermes-inspired）</td>
+                    <td>輕量關鍵字搜尋可用，不依賴外部索引。大量 session 時效能尚待觀察。屬於 <code>Implemented</code>。</td>
                 </tr>
             </tbody>
         </table>

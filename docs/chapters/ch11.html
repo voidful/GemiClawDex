@@ -34,10 +34,63 @@
                     </div>
                 </div>
 
-                <p>技能的第一個非空行會被擷取為摘要描述，供選擇時顯示。完整內容在選中後注入到 prompt 中。</p>
+                <p>技能的第一個非空行會被擷取為摘要描述，供選擇時顯示。如果 SKILL.md 包含 YAML frontmatter（以 <code>---</code> 分隔的區塊），則會解析 <code>name</code>、<code>description</code>、<code>version</code>、<code>platforms</code> 欄位。完整內容在選中後注入到 prompt 中。</p>
+
+                <h2>YAML Frontmatter（可選）</h2>
+                <p>SKILL.md 可以在開頭加入 YAML-like 的 frontmatter，提供結構化的 metadata：</p>
+                <div class="code-window slim">
+                    <div class="window-header">
+                        <span class="window-title">範例：含 frontmatter 的 SKILL.md</span>
+                    </div>
+                    <div class="window-body">
+<pre><code>---
+name: rust-patterns
+description: Idiomatic Rust patterns for error handling and lifetimes
+version: 1.2.0
+platforms: [macos, linux]
+---
+
+# Rust Patterns
+
+When working with Rust code, prefer...
+</code></pre>
+                    </div>
+                </div>
+                <p><code>platforms</code> 欄位可用於過濾：如果當前平台不在清單中，該 skill 不會被載入。沒有 <code>platforms</code> 欄位的 skill 在所有平台都可用。</p>
+
+                <h2>三層漸進載入（Progressive Disclosure）</h2>
+                <p>為了節省 token，技能系統支援三個層次的載入：</p>
+                <div class="comparison-table">
+                    <table>
+                        <thead><tr><th>層次</th><th>內容</th><th>何時使用</th></tr></thead>
+                        <tbody>
+                            <tr><td>Tier 1</td><td>只顯示 (name, description) 清單</td><td>在系統 prompt 中列出所有可用 skill，讓 agent 知道有哪些技能</td></tr>
+                            <tr><td>Tier 2</td><td>完整 SKILL.md 內容 + version</td><td>使用者透過 <code>/skill &lt;name&gt;</code> 選中時</td></tr>
+                            <tr><td>Tier 3</td><td>linked files 清單（references/, templates/, assets/）</td><td>選中時一併列出，agent 可用 <code>read_file</code> 按需載入</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Tier 1 由 <code>SkillCatalog::metadata_listing()</code> 提供，只佔很少 token。Tier 2+3 只在 skill 被明確選中後才注入 prompt。</p>
+
+                <h2><code>skill_manager</code> 工具：runtime 技能 CRUD</h2>
+                <p>參考 <a href="https://github.com/NousResearch/hermes-agent">hermes-agent</a> 的學習迴圈設計，<code>skill_manager</code> 讓 agent 在成功完成任務後，可以自行呼叫此工具將做法固化為可重用的 skill。支援六個 action：</p>
+                <div class="comparison-table">
+                    <table>
+                        <thead><tr><th>Action</th><th>作用</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>create</code></td><td>建立新 skill（name + SKILL.md 內容）</td></tr>
+                            <tr><td><code>edit</code></td><td>完整替換 SKILL.md 內容</td></tr>
+                            <tr><td><code>patch</code></td><td>find-and-replace，目標文字必須唯一</td></tr>
+                            <tr><td><code>delete</code></td><td>刪除整個 skill 目錄</td></tr>
+                            <tr><td><code>write_file</code></td><td>新增或覆寫 skill 目錄下的支援檔案</td></tr>
+                            <tr><td><code>remove_file</code></td><td>刪除 skill 目錄下的支援檔案</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>只能修改 user-created skills（<code>~/.gcd/skills/</code>），bundled 與project-level skills 為唯讀。所有寫入前會執行安全掃描：prompt injection pattern、exfiltration pattern、invisible unicode characters。</p>
 
                 <div class="source-ref">
-                    <strong>原始碼</strong>：<code>crates/gcd-core/src/skills.rs</code>
+                    <strong>原始碼</strong>：<code>crates/gcd-core/src/skills.rs</code>、<code>crates/gcd-core/src/tools/skill_manager.rs</code>
                 </div>
             </div>
             <div class="chapter-nav">

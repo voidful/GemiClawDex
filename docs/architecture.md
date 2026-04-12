@@ -25,9 +25,12 @@ Owns the domain logic:
 - environment-driven provider overlays
 - trust store evaluation
 - custom command loading
-- skill loading
+- skill loading (with YAML frontmatter and progressive disclosure)
 - instruction loading
-- prompt assembly
+- prompt assembly (with memory context injection and skill catalog listing)
+- dual-memory system (MEMORY.md + USER.md, with security scanning)
+- skill learning loop (runtime CRUD via skill_manager tool)
+- session search (keyword-based JSONL transcript search)
 - checkpoint persistence
 - saved sessions with resume/fork semantics
 - structured JSON rendering support
@@ -52,6 +55,8 @@ Owns argument parsing and text rendering:
 - provider profiles: `providers.conf`
 - active provider pins: `active-provider.txt`
 - saved sessions: `~/.gcd/sessions/<session-id>/`
+- dual memory: `<repo>/.gcd/MEMORY.md` (agent knowledge) + `<repo>/.gcd/USER.md` (user preferences)
+- user skills: `~/.gcd/skills/{name}/SKILL.md`
 - repo instructions: `<repo>/AGENTS.md`
 - optional persistent context: `<repo>/GEMINI.md`, `<repo>/CLAUDE.md`, `<repo>/GCD.md`
 
@@ -77,14 +82,16 @@ This intentionally mirrors:
 9. Substitute command arguments.
 10. Detect `!{...}` shell blocks and convert them into approval requirements.
 11. Assemble the final provider-ready prompt.
-12. Inject summarized session lineage when resuming or forking.
-13. Optionally checkpoint the assembled session.
-14. Persist the session turn unless the run is explicitly ephemeral.
+12. Inject dual-memory context (MEMORY.md + USER.md) as fenced `<memory-context>` block.
+13. Inject skill catalog listing (tier 1 progressive disclosure).
+14. Inject active skill body and linked files (tier 2+3 progressive disclosure).
+15. Inject summarized session lineage when resuming or forking.
+16. Optionally checkpoint the assembled session.
+17. Persist the session turn unless the run is explicitly ephemeral.
 
 ## Planned next steps
 
-- Live provider adapters for Gemini, OpenAI Responses/Codex, and Anthropic
 - interactive TUI
-- tool registry and permission prompts
 - richer session replay and transcript diffing
-- MCP client integration
+- memory auto-summarization and relevance filtering
+- skill auto-suggestion based on task similarity

@@ -41,7 +41,7 @@
     </div>
 
     <h2>工具註冊表是怎麼合併的</h2>
-    <p>GCD 不是讓三種工具各走各的執行路徑，而是最後都合併進同一份工具清單。<code>builtin_tools()</code> 先建立 8 個內建工具，接著 <code>all_tools(plugin_tools, mcp_tools)</code> 會依序把 plugins 與 MCP tools append 到後面。這表示「所有工具都長得像 Tool trait」，但不代表它們擁有相同的風險程度。</p>
+    <p>GCD 不是讓三種工具各走各的執行路徑，而是最後都合併進同一份工具清單。<code>builtin_tools()</code> 先建立 11 個內建工具，接著 <code>all_tools(plugin_tools, mcp_tools)</code> 會依序把 plugins 與 MCP tools append 到後面。這表示「所有工具都長得像 Tool trait」，但不代表它們擁有相同的風險程度。</p>
 
     <div class="code-window slim revealable">
         <div class="window-header">
@@ -57,6 +57,9 @@
    - fetch_url
    - apply_patch
    - spawn_agent
+   - memory          ← Hermes-inspired：雙重記憶
+   - skill_manager   ← Hermes-inspired：技能學習迴圈
+   - session_search  ← Hermes-inspired：對話回溯
 
 2. plugin tools
    - 由 PluginCatalog 載入
@@ -74,7 +77,7 @@
     </div>
 
     <h2>Built-in tools：最完整，也最像 GCD 的正式含義</h2>
-    <p>內建工具是目前最成熟、也最接近 GCD 官方含義的工具層。它們共享 <code>ToolContext</code>、多數會檢查 sandbox，並與 permission / hooks / session events 有最完整的連接。網站前面那些對 <code>read_file</code>、<code>write_file</code>、<code>apply_patch</code>、<code>shell</code>、<code>spawn_agent</code> 的分析，基本上都是以 built-in path 為準。</p>
+    <p>內建工具是目前最成熟、也最接近 GCD 官方含義的工具層。它們共享 <code>ToolContext</code>、多數會檢查 sandbox，並與 permission / hooks / session events 有最完整的連接。網站前面那些對 <code>read_file</code>、<code>write_file</code>、<code>apply_patch</code>、<code>shell</code>、<code>spawn_agent</code> 的分析，基本上都是以 built-in path 為準。新增的 <code>memory</code>、<code>skill_manager</code>、<code>session_search</code> 三個工具則操作 <code>~/.gcd/</code> 下的持久知識檔案，不直接影響工作區原始碼。</p>
 
     <div class="feature-grid compact">
         <article class="feature-card revealable">

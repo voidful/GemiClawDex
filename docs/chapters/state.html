@@ -7,7 +7,7 @@
 <div class="content-body">
     <div class="callout callout-info revealable">
         <div class="callout-title">先講結論</div>
-        <p>在 GCD 裡，<strong>session</strong> 是正式的執行記錄與延續基礎；<strong>continuation</strong> 是從既有 session 中抽出的摘要，重新插回下一輪 prompt；<strong>memory</strong> 則是獨立的 <code>MEMORY.md</code> 介面，已接入 提示詞組裝 主要流程。這三者不能互相替代，也不應該用同一種口氣描述。</p>
+        <p>在 GCD 裡，<strong>session</strong> 是正式的執行記錄與延續基礎；<strong>continuation</strong> 是從既有 session 中抽出的摘要，重新插回下一輪 prompt；<strong>memory</strong> 則是雙重記憶系統（MEMORY.md + USER.md），透過 <code>memory</code> 工具讓 agent 自主讀寫，每次執行時以 fenced block 注入 prompt。另外，<strong>session_search</strong> 工具讓 agent 能搜尋過往 session 紀錄，回溯類似問題的解法。這四者不能互相替代。</p>
     </div>
 
     <h2>為什麼這一層值得單獨分開講</h2>
@@ -173,7 +173,12 @@ Recent turn summaries
     <p>這裡也能看出一個很重要的區分：continuation 是從 session 中抽出來的可用摘要，不是另一套獨立資料系統。如果 session 本身存得不完整，continuation 也不可能憑空變得有用。</p>
 
     <h2>那 memory 呢？為什麼它不能跟 session 混成同一件事</h2>
-    <p><code>agent/memory.rs</code> 提供 <code>update_memory()</code> 與 <code>read_memory()</code> 針對 <code>.gcd/MEMORY.md</code> 的讀寫介面，且 <code>read_memory</code> 已接入 <code>App::exec</code> 與 <code>assemble_prompt</code> 主要流程，在每次執行時會自動將 MEMORY.md 內容注入 prompt 的 <code># Persistent Memory</code> 區塊。</p>
+    <p>參考 <a href="https://github.com/NousResearch/hermes-agent">hermes-agent</a> 的設計，GCD 已定義雙重記憶系統，並透過 <code>memory</code> 內建工具讓 agent 在執行中自主讀寫：</p>
+    <ul>
+        <li><strong><code>agent</code> store（MEMORY.md）</strong>：環境觀察、專案慣例、工具怪癖。存放在工作區 <code>.gcd/MEMORY.md</code>。</li>
+        <li><strong><code>user</code> store（USER.md）</strong>：使用者偏好、溝通風格、工作流習慣。存放在工作區 <code>.gcd/USER.md</code>。</li>
+    </ul>
+    <p>每個 entry 用 <code>§</code>（section sign）分隔，支援多行內容。<code>App::exec</code> 會先嘗試新的雙重記憶格式，如果不存在則 fallback 到舊的單一 <code>read_memory</code> 格式。注入 prompt 時使用 <code>&lt;memory-context&gt;</code> fenced block，防止模型將回憶內容當成新的使用者指令。</p>
 
     <div class="comparison-table">
         <table>
@@ -191,9 +196,14 @@ Recent turn summaries
                     <td>這是執行紀錄，未來要 replay / resume / fork 都會用到。</td>
                 </tr>
                 <tr>
-                    <td>跨多次執行都值得保留的專案知識</td>
-                    <td>Memory</td>
-                    <td>理想上它應該是較穩定、較長壽的專案記憶，而不是單輪事件流水帳。</td>
+                    <td>跨多次執行都值得保留的專案知識或工具怪癖</td>
+                    <td>Memory（agent store）</td>
+                    <td>透過 <code>memory</code> 工具寫入 MEMORY.md，每次執行自動注入 prompt。</td>
+                </tr>
+                <tr>
+                    <td>使用者個人偏好與工作習慣</td>
+                    <td>Memory（user store）</td>
+                    <td>透過 <code>memory</code> 工具寫入 USER.md，跟 MEMORY.md 一起注入 prompt。</td>
                 </tr>
                 <tr>
                     <td>為了下一輪工作只需要一小段歷史摘要</td>
@@ -207,22 +217,26 @@ Recent turn summaries
     <h2>實況檢查：memory 的實作現況</h2>
     <div class="checklist revealable">
         <div class="check-item">
-            <h3>有獨立讀寫介面</h3>
-            <p>這代表它不是純概念，已經有實際檔案格式與更新方式。</p>
+            <h3>雙重 store 已完整可用</h3>
+            <p><code>memory</code> 工具支援 <code>add</code>、<code>replace</code>、<code>remove</code>、<code>read</code> 四個 action，分別操作 <code>agent</code>（MEMORY.md）與 <code>user</code>（USER.md）兩個 store。</p>
         </div>
         <div class="check-item">
-            <h3>已接入 提示詞組裝 主要流程</h3>
-            <p><code>App::exec</code> 會呼叫 <code>read_memory</code>，並透過 <code>PromptRequest::memory_content</code> 將內容注入 <code>assemble_prompt</code>。</p>
+            <h3>已接入提示詞組裝主要流程</h3>
+            <p><code>App::exec</code> 先嘗試 <code>build_memory_prompt_block</code>（雙重記憶格式），fallback 到舊的 <code>read_memory</code>。<code>assemble_prompt</code> 會偵測 <code>&lt;memory-context&gt;</code> tag 並直接注入 fenced block。</p>
         </div>
         <div class="check-item">
-            <h3>持久化記憶儲存</h3>
-            <p>MEMORY.md 作為工作區級別的持久知識容器，跨 session 保留。</p>
+            <h3>安全掃描已內建</h3>
+            <p>寫入前掃描 prompt injection、exfiltration pattern、invisible unicode。每個 entry 上限 4000 chars，每個 store 上限 100 entries / 50K chars。</p>
+        </div>
+        <div class="check-item">
+            <h3>Session 搜尋已可用</h3>
+            <p><code>session_search</code> 工具可搜尋 <code>~/.gcd/sessions/</code> 中的 JSONL 歷史紀錄，回溯類似問題的解法。屬於輕量檔案搜尋，不依賴 SQLite FTS5。</p>
         </div>
     </div>
 
     <div class="callout callout-warning revealable">
-        <div class="callout-title">Memory 已接入主要流程，但仍有潛在改進空間</div>
-        <p>MEMORY.md 的內容現在會自動注入每次執行的 prompt。但真正完整的 long-term memory 還可以回答更多問題：何時自動寫入、何時清理、怎樣過濾相關性。這些都是未來可以持續優化的方向。</p>
+        <div class="callout-title">雙重記憶已完整接入，但仍有潛在改進空間</div>
+        <p>MEMORY.md + USER.md 的內容現在會自動注入每次執行的 prompt，寫入前有安全掃描。但真正完整的 long-term memory 還可以回答更多問題：何時自動摘要、何時清理過期記憶、怎樣依相關性過濾。這些都是未來可以持續優化的方向。</p>
     </div>
 
     <h2>如果你是貢獻者，該怎麼分辨新資料該進 session 還是 memory</h2>
