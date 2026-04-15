@@ -11,7 +11,7 @@ impl Tool for BrowserSubagentTool {
     }
 
     fn description(&self) -> &str {
-        "Start a browser subagent to perform actions in the browser with the given task description."
+        "[Stub] Start a browser subagent to perform actions in the browser with the given task description (Currently mock-only)."
     }
 
     fn parameters_schema(&self) -> Value {

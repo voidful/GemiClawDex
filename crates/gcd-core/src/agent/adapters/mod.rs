@@ -405,22 +405,13 @@ mod tests {
             ProviderProtocol::GeminiGenerateContent,
             gemini_base,
         );
-        let gemini_options = AgentRunOptions {
-            sandbox: SandboxPolicy::WorkspaceWrite,
-            workspace_root: std::env::temp_dir(),
-            initial_prompt: "say hi".to_string(),
-            max_turns: 1,
-            provider: gemini_provider,
-            api_key: "test-key".to_string(),
-            permission: crate::agent::PermissionLevel::AutoEdit,
-            streaming: false,
-            auto_git: false,
-            planning: false,
-            fallback_providers: Vec::new(),
-            plugin_definitions: Vec::new(),
-            coordinator_depth: 0,
-            quiet: false,
-        };
+        let mut gemini_options = AgentRunOptions::with_defaults(
+            gemini_provider,
+            std::env::temp_dir(),
+            "say hi".to_string(),
+            "test-key".to_string(),
+        );
+        gemini_options.streaming = false;
         let messages = vec![AgentMessage {
             role: "user".to_string(),
             content: "say hi".to_string(),

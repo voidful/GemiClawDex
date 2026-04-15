@@ -45,16 +45,14 @@ impl IsolatedWorktree {
             .current_dir(workspace_root)
             .output()
             .map_err(|err| {
-                io::Error::new(
-                    io::ErrorKind::Other,
+                io::Error::other(
                     format!("Failed to create git worktree: {}", err),
                 )
             })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
+            return Err(io::Error::other(
                 format!("git worktree add failed: {}", stderr.trim()),
             ));
         }
@@ -78,8 +76,7 @@ impl IsolatedWorktree {
             .current_dir(workspace_root)
             .output()
             .map_err(|err| {
-                io::Error::new(
-                    io::ErrorKind::Other,
+                io::Error::other(
                     format!("Failed to remove git worktree: {}", err),
                 )
             })?;
@@ -107,8 +104,7 @@ pub fn list_worktrees(workspace_root: &Path) -> io::Result<Vec<PathBuf>> {
         .current_dir(workspace_root)
         .output()
         .map_err(|err| {
-            io::Error::new(
-                io::ErrorKind::Other,
+            io::Error::other(
                 format!("Failed to list git worktrees: {}", err),
             )
         })?;
