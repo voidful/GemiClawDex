@@ -1,6 +1,7 @@
 use serde_json::Value;
 
 use super::apply_patch::ApplyPatchTool;
+use super::browser_subagent::BrowserSubagentTool;
 use super::coordinator::CoordinatorTool;
 use super::fetch_url::FetchUrlTool;
 use super::list_dir::ListDirTool;
@@ -27,6 +28,7 @@ pub fn builtin_tools() -> Vec<Box<dyn Tool>> {
         Box::new(MemoryTool),
         Box::new(SkillManagerTool),
         Box::new(SessionSearchTool),
+        Box::new(BrowserSubagentTool),
     ]
 }
 

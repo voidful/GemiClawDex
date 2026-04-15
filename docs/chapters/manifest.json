@@ -5,6 +5,7 @@
       "items": [
         { "id": "home", "icon": "00", "label": "首頁" },
         { "id": "intro", "icon": "01", "label": "AI 助手的外殼是什麼？" },
+        { "id": "context-eng", "icon": "01b", "label": "Context Engineering 入門" },
         { "id": "starter", "icon": "02", "label": "第一個小範例" },
         { "id": "faq", "icon": "03", "label": "8 個常見名詞速查" }
       ]
@@ -38,9 +39,17 @@
       ]
     },
     {
+      "title": "實戰",
+      "items": [
+        { "id": "agents-md-workshop", "icon": "W1", "label": "AGENTS.md 撰寫工作坊" },
+        { "id": "verification-loops", "icon": "W2", "label": "驗證迴圈與 Ralph Wiggum Loop" },
+        { "id": "eval-observability", "icon": "W3", "label": "Agent 評估與可觀測性" }
+      ]
+    },
+    {
       "title": "比較",
       "items": [
-        { "id": "comp", "icon": "22", "label": "和三大產品的比較" },
+        { "id": "comp", "icon": "22", "label": "和四大來源的比較" },
         { "id": "strategy", "icon": "23", "label": "設計決策的來源" },
         { "id": "refs", "icon": "24", "label": "參考來源和出處" }
       ]

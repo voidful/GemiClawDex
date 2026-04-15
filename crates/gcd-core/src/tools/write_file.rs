@@ -24,7 +24,15 @@ impl Tool for WriteFileTool {
             "type": "object",
             "properties": {
                 "path": { "type": "string", "description": "Relative or absolute path to write" },
-                "content": { "type": "string", "description": "Content to write" }
+                "content": { "type": "string", "description": "Content to write" },
+                "is_artifact": { "type": "boolean", "description": "Set to true if creating an artifact." },
+                "artifact_metadata": {
+                    "type": "object",
+                    "properties": {
+                        "artifact_type": { "type": "string" },
+                        "summary": { "type": "string" }
+                    }
+                }
             },
             "required": ["path", "content"]
         })
@@ -55,10 +63,26 @@ impl Tool for WriteFileTool {
         }
         fs::write(&path, content)?;
 
-        Ok(serde_json::json!({
+        let mut res = serde_json::json!({
             "path": path.display().to_string(),
             "bytes_written": content.len(),
             "diff_preview": diff
-        }))
+        });
+
+        if params.get("is_artifact").and_then(|v| v.as_bool()).unwrap_or(false) {
+            let meta = params.get("artifact_metadata").cloned().unwrap_or(serde_json::Value::Null);
+            let artifact_type = meta.get("artifact_type").and_then(|v| v.as_str()).unwrap_or("other").to_string();
+            let summary = meta.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            
+            res = super::embed_tool_events(res, vec![
+                crate::agent::AgentEvent::ArtifactUpdated {
+                    path: path.display().to_string(),
+                    artifact_type,
+                    summary,
+                }
+            ]);
+        }
+
+        Ok(res)
     }
 }

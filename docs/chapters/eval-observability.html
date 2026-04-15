@@ -1,0 +1,108 @@
+<div class="chapter-header">
+    <span class="chapter-number">補充章</span>
+    <h1>怎麼知道你的 Agent 做得好不好</h1>
+    <p class="chapter-desc">從「感覺有用」到「可量化衡量」。用 GCD 的內建工具做 agent 品質評估。</p>
+</div>
+
+<div class="content-body">
+    <div class="callout callout-info revealable">
+        <div class="callout-title">為什麼需要評估</div>
+        <p>Anthropic 在 2026 年的基準測試報告指出：光是 harness 設定的差異，就可以讓同一個模型的 benchmark 分數浮動 5 個百分點以上。換句話說，如果你不量化，你就不知道是模型的問題還是 harness 的問題。</p>
+    </div>
+
+    <h2>三個評估維度</h2>
+    <div class="feature-grid">
+        <div class="feature-card revealable">
+            <div class="feature-num">1</div>
+            <h3>任務完成率</h3>
+            <p>Agent 被要求做 10 件事，實際完成了幾件？每件的品質如何？這是最直觀的指標。</p>
+        </div>
+        <div class="feature-card revealable">
+            <div class="feature-num">2</div>
+            <h3>Token 效率</h3>
+            <p>完成同一個任務，用了多少 token？GCD 的每次 session 都會自動追蹤 prompt / completion token 用量。更少的 token 意味著更低的成本和更快的回應。</p>
+        </div>
+        <div class="feature-card revealable">
+            <div class="feature-num">3</div>
+            <h3>工具呼叫準確率</h3>
+            <p>Agent 呼叫了多少次工具？其中有多少是有效的？無效的工具呼叫（讀了不相關的檔案、執行了失敗的指令）浪費 token 和時間。</p>
+        </div>
+    </div>
+
+    <h2>GCD 的內建可觀測性工具</h2>
+
+    <div class="comparison-table">
+        <table>
+            <thead>
+                <tr><th>工具</th><th>提供什麼</th><th>怎麼用</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Token 追蹤</strong></td>
+                    <td>每次 session 的 prompt / completion token 用量</td>
+                    <td>session 結束時自動顯示</td>
+                </tr>
+                <tr>
+                    <td><strong>Session JSONL</strong></td>
+                    <td>完整的事件流：每一輪對話、每一次工具呼叫、每一個結果</td>
+                    <td><code>gcd sessions replay &lt;id&gt;</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Coordinator 事件</strong></td>
+                    <td>批次任務的完整生命週期：started, batch, task, blocked, completed</td>
+                    <td>在 session replay 中可見</td>
+                </tr>
+                <tr>
+                    <td><strong>Session Search</strong></td>
+                    <td>搜尋過往對話，找到類似問題的解法</td>
+                    <td><code>session_search</code> 工具，或在 REPL 中使用</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>做一次簡單的 A/B 測試</h2>
+    <p>最實用的評估方法：固定任務，改變一個 harness 變數，比較結果。</p>
+
+    <div class="code-window revealable">
+        <div class="window-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="window-title">A/B 測試範例</span>
+        </div>
+        <div class="window-body">
+<pre><code class="language-bash"># A 組：沒有 AGENTS.md
+mv AGENTS.md AGENTS.md.bak
+gcd exec "在 src/cache.rs 加入 TTL 過期測試"
+# 記錄：token 用量、完成品質、工具呼叫次數
+
+# B 組：有 AGENTS.md
+mv AGENTS.md.bak AGENTS.md
+gcd exec "在 src/cache.rs 加入 TTL 過期測試"
+# 記錄：token 用量、完成品質、工具呼叫次數
+
+# 比較兩組的 session replay
+gcd sessions list</code></pre>
+        </div>
+    </div>
+
+    <p>這就是最基本的 harness 評估。你會發現，有 AGENTS.md 的那組通常：工具呼叫更精準（因為 agent 知道專案結構）、token 用量可能更高（因為 context 更多），但任務完成品質明顯更好。</p>
+
+    <h2>進階：設計 Eval Harness</h2>
+    <p>如果你要系統化地評估 harness 效果，需要：</p>
+    <ul>
+        <li><strong>固定測試集</strong>：5-10 個有標準答案的任務（例如「為這個函數寫測試」「修復這個 bug」）</li>
+        <li><strong>自動化執行</strong>：用 <code>gcd exec --no-stream --json</code> 批次執行，收集 JSONL 輸出</li>
+        <li><strong>評分標準</strong>：測試通過（binary）、程式碼品質（LLM-as-judge）、token 成本</li>
+        <li><strong>變數控制</strong>：每次只改一個 harness 組件（AGENTS.md、skill set、provider、permission level）</li>
+    </ul>
+
+    <div class="callout callout-tip revealable">
+        <div class="callout-title">Hermes Agent 的做法</div>
+        <p>Hermes Agent 有一個完整的 <code>batch_runner.py</code>（55K 行）和 <code>environments/</code> 目錄，支援 RL 訓練環境、trajectory 壓縮、基準測試。GCD 的規模不需要這麼複雜，但核心概念是一樣的：固定任務、改變配置、量化比較。</p>
+    </div>
+</div>
+
+<div class="chapter-nav">
+    <button class="btn btn-outline" onclick="navigateTo('verification-loops')">← 驗證迴圈</button>
+    <button class="btn btn-primary" onclick="navigateTo('comp')">產品比較 →</button>
+</div>

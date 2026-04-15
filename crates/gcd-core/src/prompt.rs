@@ -8,6 +8,7 @@ use crate::providers::ProviderProfile;
 use crate::skills::{SkillCatalog, SkillDefinition};
 use crate::trust::TrustState;
 use crate::workspace::Workspace;
+use crate::agent::IdeContext;
 
 mod command_invocation;
 mod expansion;
@@ -60,6 +61,8 @@ pub struct PromptRequest<'a> {
     pub user_input: &'a str,
     /// Persistent memory content from MEMORY.md (if present).
     pub memory_content: Option<&'a str>,
+    /// Ephemeral IDE contextual metadata (cursor, active file, etc).
+    pub ide_context: Option<&'a IdeContext>,
 }
 
 pub fn assemble_prompt(request: PromptRequest<'_>) -> io::Result<PromptAssembly> {
@@ -155,9 +158,29 @@ pub fn assemble_prompt(request: PromptRequest<'_>) -> io::Result<PromptAssembly>
         sections.push(catalog);
     }
 
-    // Progressive skill disclosure tier 2+3: full body + linked files
+    // Tier 2+3: full body + linked files
     if let Some(skill) = &active_skill {
         sections.push(render_skill_section(skill));
+    }
+
+    if let Some(ctx) = request.ide_context {
+        let mut ide_meta = String::from("# IDE Context\n");
+        if let Some(file) = &ctx.active_file {
+            ide_meta.push_str(&format!("Active File: {}\n", file));
+            if let Some(line) = ctx.cursor_line {
+                ide_meta.push_str(&format!("Cursor Position: Line {}\n", line));
+            }
+        }
+        if let Some(files) = &ctx.open_files {
+            ide_meta.push_str(&format!("Open Files: {}\n", files.join(", ")));
+        }
+        if let Some(sel) = &ctx.selected_text {
+            ide_meta.push_str(&format!("Selected Text:\n```\n{}\n```\n", sel));
+        }
+        if let Some(browser) = &ctx.browser_state {
+            ide_meta.push_str(&format!("Browser State:\n```\n{}\n```\n", browser));
+        }
+        sections.push(ide_meta.trim_end().to_string());
     }
 
     sections.push(format!("# Task\n{}", prompt_body.trim()));
@@ -263,6 +286,7 @@ mod tests {
             selected_skill: None,
             user_input: "/review src/main.rs",
             memory_content: None,
+            ide_context: None,
         })
         .unwrap();
 

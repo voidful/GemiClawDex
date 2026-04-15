@@ -586,6 +586,7 @@ impl App {
             selected_skill: options.skill.as_deref(),
             user_input: &options.input,
             memory_content: memory_content.as_deref(),
+            ide_context: options.ide_context.as_ref(),
         })?;
 
         if let Some((mode, record)) = &session_source {
@@ -697,6 +698,7 @@ impl App {
         agent_options.streaming = options.stream;
         agent_options.auto_git = options.auto_git;
         agent_options.planning = false;
+        agent_options.ide_context = options.ide_context.clone();
 
         // Build fallback provider list from same-family providers
         let mut fallback_providers = Vec::new();
@@ -856,6 +858,7 @@ pub struct ExecOptions {
     pub stream: bool,
     pub auto_git: bool,
     pub plan_only: bool,
+    pub ide_context: Option<crate::agent::IdeContext>,
 }
 
 #[derive(Clone, Debug)]
@@ -1085,6 +1088,16 @@ fn describe_event(event: &AgentEvent) -> String {
             from_provider,
             to_provider,
             truncate_text(reason, 48)
+        ),
+        AgentEvent::ArtifactUpdated {
+            path,
+            artifact_type,
+            summary,
+        } => format!(
+            "artifact updated: {} ({}) - {}",
+            path,
+            artifact_type,
+            truncate_text(summary, 60)
         ),
     }
 }

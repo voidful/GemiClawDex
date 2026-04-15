@@ -1,0 +1,129 @@
+<div class="chapter-header">
+    <span class="chapter-number">補充章</span>
+    <h1>Context Engineering — 你送進去的東西決定了 AI 的表現</h1>
+    <p class="chapter-desc">Prompt Engineering 只是 Context Engineering 的子集。這一章解釋三層演進，以及 GCD 怎麼組裝 context。</p>
+</div>
+
+<div class="content-body">
+    <div class="callout callout-info revealable">
+        <div class="callout-title">一句話解釋</div>
+        <p><strong>Context Engineering</strong> 是「決定送什麼資訊給 AI 模型」的工程實踐。Prompt 只是 context 的一小部分。真正影響 AI 表現的，是你送進去的所有東西：檔案內容、工具結果、記憶、專案規範、技能描述。</p>
+    </div>
+
+    <h2>三層演進：從 Prompt 到 Harness</h2>
+    <p>很多人把「跟 AI 對話」和「寫 prompt」畫等號。但實際上，AI 助手收到的不只是你打的那句話。中間有一整條管線在組裝 context。理解這三層，是理解 harness engineering 的前提。</p>
+
+    <div class="comparison-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>層次</th>
+                    <th>你在做什麼</th>
+                    <th>範例</th>
+                    <th>GCD 對應</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Prompt Engineering</strong></td>
+                    <td>決定「怎麼問」</td>
+                    <td>「請用 bullet point 列出這段程式碼的問題」</td>
+                    <td>使用者在 REPL 輸入的文字</td>
+                </tr>
+                <tr>
+                    <td><strong>Context Engineering</strong></td>
+                    <td>決定「送什麼進去」</td>
+                    <td>把相關檔案、測試結果、專案規範一起送給模型</td>
+                    <td><code>prompt.rs</code> 的組裝邏輯</td>
+                </tr>
+                <tr>
+                    <td><strong>Harness Engineering</strong></td>
+                    <td>決定「整個系統怎麼運作」</td>
+                    <td>工具呼叫迴圈、權限控制、session 管理、驗證迴圈</td>
+                    <td><code>agent.rs</code> + 所有基礎設施</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p>換個比喻：如果 AI 模型是一個很厲害的廚師，Prompt Engineering 是告訴他「做一道義大利麵」。Context Engineering 是把正確的食材、食譜、廚房工具都準備好放在他面前。Harness Engineering 是設計整個廚房的動線、安全規範、品質檢查流程。</p>
+
+    <h2>GCD 的 Context 從哪裡來</h2>
+    <p>當你在 GCD 輸入一句話，模型實際收到的 context 遠比那句話多。以下是 <code>prompt.rs</code> 組裝的完整結構：</p>
+
+    <div class="pipeline">
+        <div class="pipeline-step revealable">
+            <div class="pipeline-num">1</div>
+            <div class="pipeline-content"><strong>System Prompt 基礎指令</strong> — 告訴模型它是一個 coding agent，有哪些工具可用，行為規範是什麼。</div>
+        </div>
+        <div class="pipeline-step revealable">
+            <div class="pipeline-num">2</div>
+            <div class="pipeline-content"><strong>AGENTS.md 專案規範</strong> — 從 <code>instructions.rs</code> 載入。也支援 GEMINI.md、CLAUDE.md、GCD.md。告訴模型這個專案的慣例。</div>
+        </div>
+        <div class="pipeline-step revealable">
+            <div class="pipeline-num">3</div>
+            <div class="pipeline-content"><strong>Memory 注入</strong> — MEMORY.md（環境知識）和 USER.md（使用者偏好）的內容，由 <code>prompt.rs</code> 的 memory context injection 處理。</div>
+        </div>
+        <div class="pipeline-step revealable">
+            <div class="pipeline-num">4</div>
+            <div class="pipeline-content"><strong>Skill Catalog 列表</strong> — 可用技能的 metadata（名稱 + 描述），不是完整內容。這就是 Progressive Skill Disclosure 的第一層。</div>
+        </div>
+        <div class="pipeline-step revealable">
+            <div class="pipeline-num">5</div>
+            <div class="pipeline-content"><strong>使用者的提示詞</strong> — 你實際輸入的文字，包括 <code>@{file}</code> 檔案注入和 <code>!{command}</code> shell 區塊。</div>
+        </div>
+        <div class="pipeline-step revealable">
+            <div class="pipeline-num">6</div>
+            <div class="pipeline-content"><strong>對話歷史</strong> — 之前的 user/assistant 訊息對。如果太長，<code>agent.rs</code> 會自動壓縮（auto-compact）。</div>
+        </div>
+        <div class="pipeline-step revealable">
+            <div class="pipeline-num">7</div>
+            <div class="pipeline-content"><strong>工具呼叫結果</strong> — 上一輪工具執行的輸出（例如 read_file 的內容、shell 的 stdout）。</div>
+        </div>
+    </div>
+
+    <div class="source-ref"><strong>原始碼</strong>：<code>crates/gcd-core/src/prompt.rs</code>、<code>crates/gcd-core/src/prompt/expansion.rs</code></div>
+
+    <h2>Context Window 是有限的</h2>
+    <p>所有模型都有 context window 上限（例如 128K tokens）。這意味著上面七層的內容加起來不能超過這個上限。如果超過了，GCD 的 <code>agent.rs</code> 會自動壓縮對話歷史。</p>
+
+    <p>這就是為什麼 Context Engineering 很重要：你需要決定<strong>什麼資訊值得佔用有限的 context 空間</strong>。Anthropic 把這個概念叫做「Context Anxiety」，意思是模型的注意力是有限的，塞太多東西進去反而會讓它分心。</p>
+
+    <div class="callout callout-tip revealable">
+        <div class="callout-title">和 Hermes Agent 的對照</div>
+        <p>Hermes Agent 的 <code>context_compressor.py</code>（37K 行）和 <code>context_engine.py</code> 處理同樣的問題，但規模大得多。GCD 的壓縮邏輯在 <code>agent.rs</code> 的 auto-compact 區段，相對簡潔，更適合學習核心概念。</p>
+    </div>
+
+    <h2>動手練習</h2>
+    <p>試試看用 GCD 執行同一個任務，但送進去的 context 不同：</p>
+    <div class="comparison-table">
+        <table>
+            <thead>
+                <tr><th>實驗</th><th>做法</th><th>觀察重點</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>A：只有 prompt</td>
+                    <td><code>gcd exec "這個專案用了什麼設計模式"</code></td>
+                    <td>模型只能猜測，回答很泛</td>
+                </tr>
+                <tr>
+                    <td>B：加上檔案注入</td>
+                    <td><code>gcd exec "分析 @{crates/gcd-core/src/agent.rs} 用了什麼設計模式"</code></td>
+                    <td>模型能引用具體的程式碼</td>
+                </tr>
+                <tr>
+                    <td>C：加上 AGENTS.md</td>
+                    <td>確認 AGENTS.md 存在後重跑 B</td>
+                    <td>模型知道設計決策的來源和理由</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p>差異就是 Context Engineering 的效果。</p>
+</div>
+
+<div class="chapter-nav">
+    <button class="btn btn-outline" onclick="navigateTo('intro')">← 前言</button>
+    <button class="btn btn-primary" onclick="navigateTo('starter')">入門範例 →</button>
+</div>

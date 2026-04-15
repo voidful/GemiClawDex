@@ -1,0 +1,31 @@
+{
+  "name": "GemiClawDex Dev",
+  "image": "mcr.microsoft.com/devcontainers/rust:1-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12"
+    }
+  },
+  "postCreateCommand": "cargo build --release 2>&1 | tail -3 && echo '✅ GCD compiled. Run: ./target/release/gcd'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml"
+      ],
+      "settings": {
+        "rust-analyzer.cargo.allFeatures": true
+      }
+    }
+  },
+  "remoteEnv": {
+    "GCD_SANDBOX": "workspace-write"
+  },
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "GCD Docs Site",
+      "onAutoForward": "notify"
+    }
+  }
+}

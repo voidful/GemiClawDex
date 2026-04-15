@@ -7,6 +7,11 @@ use crate::config::SandboxPolicy;
 use crate::plugins::PluginDefinition;
 use crate::providers::ProviderProfile;
 
+#[async_trait::async_trait]
+pub trait ApprovalHandler: Send + Sync + std::fmt::Debug {
+    async fn request_approval(&self, call: &ToolCall) -> (bool, bool);
+}
+
 const DEFAULT_MAX_TURNS: usize = 10;
 const CHARS_PER_TOKEN: usize = 4;
 
@@ -58,6 +63,15 @@ impl TokenUsage {
     }
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct IdeContext {
+    pub active_file: Option<String>,
+    pub cursor_line: Option<usize>,
+    pub open_files: Option<Vec<String>>,
+    pub selected_text: Option<String>,
+    pub browser_state: Option<String>,
+}
+
 #[derive(Clone, Debug)]
 pub struct AgentRunOptions {
     pub provider: ProviderProfile,
@@ -78,6 +92,10 @@ pub struct AgentRunOptions {
     pub coordinator_depth: usize,
     /// Suppress runtime progress logs for nested/sub-agent runs.
     pub quiet: bool,
+    /// IDE context from the frontend extension or web application.
+    pub ide_context: Option<IdeContext>,
+    /// Optional async handler for dynamically approving tool executions.
+    pub approval_handler: Option<std::sync::Arc<dyn ApprovalHandler>>,
 }
 
 impl AgentRunOptions {
@@ -102,6 +120,8 @@ impl AgentRunOptions {
             plugin_definitions: Vec::new(),
             coordinator_depth: 0,
             quiet: false,
+            ide_context: None,
+            approval_handler: None,
         }
     }
 }
@@ -253,6 +273,11 @@ pub enum AgentEvent {
         from_provider: String,
         to_provider: String,
         reason: String,
+    },
+    ArtifactUpdated {
+        path: String,
+        artifact_type: String,
+        summary: String,
     },
 }
 

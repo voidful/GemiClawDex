@@ -1,6 +1,6 @@
 <div class="chapter-header">
     <span class="chapter-number">對照</span>
-    <h1>Claude Code、Gemini CLI、OpenAI Codex 對 GCD 的影響</h1>
+    <h1>Claude Code、Gemini CLI、OpenAI Codex、Hermes Agent 對 GCD 的影響</h1>
     <p class="chapter-desc">這一章不做品牌評比，而是明確回答：學了什麼、沒學什麼、為什麼這樣取捨。</p>
 </div>
 
@@ -10,7 +10,7 @@
     </div>
 
     <h2>先講一個總結論</h2>
-    <p>如果把三大產品的影響分開來看，Claude Code 對 GCD 的影響主要在 prompt、tool、trust 與 workflow 語言；Gemini CLI 主要影響 terminal-first 心智、workspace config 與 MCP / context file 的擴充方向；OpenAI Codex 則提供了 approval、sandbox、本地 agent 交互節奏的產品風格。GCD 把這些脈絡重新編排成一條 Rust-native 主要流程，而不是把三個產品的功能名稱拼成清單。</p>
+    <p>如果把四個主要參考來源的影響分開來看，Claude Code 對 GCD 的影響主要在 prompt、tool、trust 與 workflow 語言；Gemini CLI 主要影響 terminal-first 心智、workspace config 與 MCP / context file 的擴充方向；OpenAI Codex 則提供了 approval、sandbox、本地 agent 交互節奏的產品風格；Hermes Agent 貢獻了技能學習迴圈、記憶系統和 session 搜尋。GCD 把這些脈絡重新編排成一條 Rust-native 主要流程，而不是把四個來源的功能名稱拼成清單。</p>
 
     <div class="callout callout-info revealable">
         <div class="callout-title">讀法提醒</div>
@@ -49,6 +49,24 @@
                 <li>學了什麼：instruction-driven workflow、審核機制、sandbox 分級、本地 AI 助手 手感。</li>
                 <li>沒學什麼：單一供應商假設、完整 app shell / GUI、產品級隔離與雲端整合。</li>
                 <li>為什麼：GCD 想保留 provider 可替換性，並把安全設計寫進原始碼與文件，而不是綁在單一平台。</li>
+            </ul>
+        </article>
+    </div>
+
+    <h2>第四個主要參考：Hermes Agent</h2>
+    <div class="callout callout-info revealable">
+        <div class="callout-title">為什麼單獨列出</div>
+        <p>前面三個是商業產品。Hermes Agent 是開源社群專案（NousResearch），但它對 GCD 的影響不亞於三大產品，尤其在「agent 怎麼從經驗中學習」這個方向上。GCD 的技能學習迴圈、雙重記憶系統、記憶安全掃描、Session 搜尋、Progressive Skill Disclosure 五個特性都來自 Hermes。</p>
+    </div>
+    <div class="compare-columns">
+        <article class="compare-card revealable">
+            <div class="compare-kicker">Hermes Agent</div>
+            <h3>借 skill learning loop / memory / session search</h3>
+            <p>Hermes 是目前最完整的開源 AI agent 之一：205K 行 Python、78 個 skills、26 個類別、支援 6 個通訊平台。GCD 學它的自我改善機制，不學它的平台規模。</p>
+            <ul class="bullet-list">
+                <li>學了什麼：skill_manager 自動建立技能、MEMORY.md + USER.md 雙重記憶、寫入前安全掃描、session_search 回溯、YAML frontmatter + progressive disclosure。</li>
+                <li>沒學什麼：gateway 多平台（Telegram / Discord / Slack）、skin 主題引擎、credential pool、batch trajectory generation、RL 訓練環境。</li>
+                <li>為什麼：GCD 是教學專案，專注在「一個工程師在終端機前怎麼用 agent」這個場景。多平台支援和 RL 訓練超出教學範圍。</li>
             </ul>
         </article>
     </div>
@@ -106,6 +124,18 @@
                     <td>Gemini CLI、Open Agent SDK TS</td>
                     <td>MCP 與 plugin 已接到工具註冊表，但文件保守標示完成度。</td>
                     <td>不把可擴充性當作萬能空談，會先問它是否已進主要流程、是否可測。</td>
+                </tr>
+                <tr>
+                    <td>技能學習迴圈 / Progressive Disclosure</td>
+                    <td>Hermes Agent</td>
+                    <td><code>skill_manager</code> 工具讓 agent 自動建立可重用 skill。YAML frontmatter 三層載入節省 token。</td>
+                    <td>不做 Skills Hub 線上市集、不做跨 agent 技能同步。教學專案專注在本地使用。</td>
+                </tr>
+                <tr>
+                    <td>記憶系統 / Session 搜尋</td>
+                    <td>Hermes Agent</td>
+                    <td>MEMORY.md + USER.md 雙重記憶，寫入前安全掃描防注入。<code>session_search</code> 回溯過往對話。</td>
+                    <td>不做 Honcho 語義記憶、不做跨 session 的 dialectic user modeling。保持檔案級簡單。</td>
                 </tr>
             </tbody>
         </table>

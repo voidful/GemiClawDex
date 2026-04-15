@@ -1,4 +1,5 @@
 mod apply_patch;
+mod browser_subagent;
 pub(crate) mod common;
 pub(crate) mod container;
 mod context;

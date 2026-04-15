@@ -1,0 +1,214 @@
+<div class="chapter-header">
+    <span class="chapter-number">工作坊</span>
+    <h1>AGENTS.md 撰寫工作坊</h1>
+    <p class="chapter-desc">Harness Engineering 最小成本、最大效果的起點。學完這一章，你就能為自己的專案寫出一份有效的 AGENTS.md。</p>
+</div>
+
+<div class="content-body">
+    <div class="callout callout-info revealable">
+        <div class="callout-title">為什麼 AGENTS.md 是第一步</div>
+        <p>Anthropic 的實測顯示：同一個模型（Opus 4.5），沒有 harness 時花 $9 和 20 分鐘產出無法使用的結果。有完整 harness 時花 $200 和 6 小時產出可運行的程式。而 AGENTS.md 是 harness 中<strong>成本最低、效果最明顯</strong>的部分，因為它只是一個文字檔。</p>
+    </div>
+
+    <h2>AGENTS.md 在 Harness 分類中的位置</h2>
+    <p>Martin Fowler 的 Harness 分類把所有 harness 組件分成四個象限。AGENTS.md 屬於 <strong>Inferential Guide</strong>：它是一份用自然語言寫的指引，告訴 agent 應該怎麼在這個專案裡工作。</p>
+
+    <div class="comparison-table">
+        <table>
+            <thead>
+                <tr><th></th><th>Guide（引導 agent 的行為）</th><th>Sensor（檢查 agent 的輸出）</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Computational</strong>（機器可執行）</td>
+                    <td>Linter 規則、Type checker、CI config</td>
+                    <td>Test suite、Structural tests</td>
+                </tr>
+                <tr>
+                    <td><strong>Inferential</strong>（需要 LLM 理解）</td>
+                    <td>✅ <strong>AGENTS.md</strong>、參考文件、範例程式碼</td>
+                    <td>LLM-as-judge、AI code review</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>拆解 GCD 自己的 AGENTS.md</h2>
+    <p>GCD 的 AGENTS.md 是一份活教材。以下逐段解釋為什麼這樣寫：</p>
+
+    <div class="code-window revealable">
+        <div class="window-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="window-title">AGENTS.md（節錄）</span>
+        </div>
+        <div class="window-body">
+<pre><code class="language-markdown"># GemiClawDex — Development Instructions
+
+## Project Purpose
+GCD is a teaching project for Harness Engineering.
+
+## Coding Conventions
+1. Keep gcd-core free of unnecessary dependencies.
+2. Prefer plain-text, testable domain logic.
+3. Make trust and sandbox decisions explicit in the output.
+4. Treat command loading, skill loading, and prompt assembly as separate layers.
+5. Preserve offline testability.
+
+## What NOT to Do
+- Do not add features just because they are "cool."
+- Do not write documentation that claims a feature is "fully implemented" when it is a stub.</code></pre>
+        </div>
+    </div>
+
+    <div class="comparison-table">
+        <table>
+            <thead>
+                <tr><th>段落</th><th>為什麼這樣寫</th><th>效果</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Project Purpose</td>
+                    <td>讓 agent 知道這是教學專案，不是生產工具</td>
+                    <td>agent 會優先考慮可讀性，而不是極致效能</td>
+                </tr>
+                <tr>
+                    <td>Coding Conventions</td>
+                    <td>具體的約束比抽象原則更有效</td>
+                    <td>agent 不會引入不必要的依賴</td>
+                </tr>
+                <tr>
+                    <td>What NOT to Do</td>
+                    <td>禁止項比建議項更有效。agent 很擅長遵守禁令</td>
+                    <td>避免功能膨脹和狀態誤標</td>
+                </tr>
+                <tr>
+                    <td>File Dependency Chain</td>
+                    <td>讓 agent 知道改一個檔案會影響哪些其他檔案</td>
+                    <td>減少遺漏的連帶修改</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>寫好 AGENTS.md 的五個原則</h2>
+
+    <div class="feature-grid">
+        <div class="feature-card revealable">
+            <div class="feature-num">1</div>
+            <h3>告訴 agent「你在哪」</h3>
+            <p>專案結構、技術棧、關鍵檔案路徑。Agent 不會自己探索整個 repo，你要告訴它重點在哪。</p>
+        </div>
+        <div class="feature-card revealable">
+            <div class="feature-num">2</div>
+            <h3>告訴 agent「不要做什麼」</h3>
+            <p>禁止項比建議項更有效。「不要引入新依賴」比「盡量減少依賴」清楚十倍。</p>
+        </div>
+        <div class="feature-card revealable">
+            <div class="feature-num">3</div>
+            <h3>告訴 agent「怎麼驗證」</h3>
+            <p>測試指令、lint 指令、格式檢查指令。讓 agent 可以自己確認工作品質。</p>
+        </div>
+        <div class="feature-card revealable">
+            <div class="feature-num">4</div>
+            <h3>保持短小</h3>
+            <p>AGENTS.md 的內容會佔用 context window。500 字以內是理想長度。太長的話，用子目錄的 AGENTS.md 分層放置。</p>
+        </div>
+        <div class="feature-card revealable">
+            <div class="feature-num">5</div>
+            <h3>分層放置</h3>
+            <p>根目錄放全域規範。子目錄放局部規則。GCD 的 <code>instructions.rs</code> 會自動合併多層 AGENTS.md。</p>
+        </div>
+    </div>
+
+    <h2>三個範例</h2>
+
+    <h3>範例 A：Python Flask 專案</h3>
+    <div class="code-window revealable">
+        <div class="window-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="window-title">AGENTS.md</span>
+        </div>
+        <div class="window-body">
+<pre><code class="language-markdown"># My Flask App
+
+Python 3.12 + Flask 3.x + SQLAlchemy 2.x.
+
+## Structure
+- app/ — Flask application
+- tests/ — pytest tests
+- migrations/ — Alembic migrations
+
+## Rules
+- All endpoints must have type hints.
+- All database queries must use SQLAlchemy ORM, not raw SQL.
+- Run `pytest` before committing. All tests must pass.
+- Do not modify migration files directly. Use `flask db migrate`.
+
+## Testing
+```bash
+pytest
+pytest --cov=app
+flask db upgrade  # before running tests
+```</code></pre>
+        </div>
+    </div>
+
+    <h3>範例 B：Monorepo</h3>
+    <div class="code-window revealable">
+        <div class="window-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="window-title">AGENTS.md（根目錄）</span>
+        </div>
+        <div class="window-body">
+<pre><code class="language-markdown"># Acme Platform
+
+Monorepo: frontend (Next.js) + backend (Go) + shared (protobuf).
+
+## Cross-cutting rules
+- Frontend changes must not break backend API contracts.
+- Shared proto changes require regenerating both frontend and backend stubs.
+- Each package has its own AGENTS.md with local rules.
+
+## CI
+```bash
+make lint    # runs all linters
+make test    # runs all tests
+```</code></pre>
+        </div>
+    </div>
+
+    <h3>範例 C：資料科學專案</h3>
+    <div class="code-window revealable">
+        <div class="window-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="window-title">AGENTS.md</span>
+        </div>
+        <div class="window-body">
+<pre><code class="language-markdown"># Sentiment Analysis Pipeline
+
+Python 3.11 + pandas + scikit-learn + DVC for data versioning.
+
+## Rules
+- Never commit data files. Use DVC.
+- Notebooks are for exploration only. Production code goes in src/.
+- All model training must be reproducible: fix random seeds, log hyperparameters.
+
+## Testing
+```bash
+pytest tests/
+python -m src.train --dry-run  # verify pipeline without GPU
+```</code></pre>
+        </div>
+    </div>
+
+    <h2>動手練習</h2>
+    <div class="callout callout-tip revealable">
+        <div class="callout-title">練習：為 GCD 改寫 AGENTS.md</div>
+        <p>打開 GCD 的 AGENTS.md，用你在這一章學到的五個原則重新評估它。有沒有缺少的資訊？有沒有多餘的內容？試著改寫一版，然後用 <code>gcd exec "解釋這個專案的架構"</code> 比較改寫前後的輸出品質。</p>
+    </div>
+</div>
+
+<div class="chapter-nav">
+    <button class="btn btn-outline" onclick="navigateTo('workflow')">← 專案規範</button>
+    <button class="btn btn-primary" onclick="navigateTo('verification-loops')">驗證迴圈 →</button>
+</div>

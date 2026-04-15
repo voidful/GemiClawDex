@@ -111,6 +111,9 @@ enum Commands {
         #[arg(required = true)]
         task: Vec<String>,
     },
+
+    /// Start a JSON-RPC daemon on stdio for IDE integration
+    Serve,
 }
 
 #[derive(Subcommand, Debug)]
@@ -182,6 +185,9 @@ async fn main() -> anyhow::Result<()> {
 
     let current_dir = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let app = App::new(current_dir);
+    if let Commands::Serve = cli.command.as_ref().unwrap() {
+        return run_server_daemon(app).await;
+    }
     let app_command = map_command(cli.command.unwrap());
 
     match app.handle(app_command).await {
@@ -200,6 +206,58 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Server Daemon — JSON-RPC over stdio
+// ---------------------------------------------------------------------------
+
+async fn run_server_daemon(app: gcd_core::App) -> anyhow::Result<()> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    
+    let mut stdin = BufReader::new(tokio::io::stdin());
+    let mut stdout = tokio::io::stdout();
+    let mut line = String::new();
+
+    // A simple loop listening to JSON inputs on stdio
+    loop {
+        line.clear();
+        if stdin.read_line(&mut line).await? == 0 {
+            break;
+        }
+        let input = line.trim();
+        if input.is_empty() {
+            continue;
+        }
+
+        // Extremely simplified daemon endpoint.
+        // It responds to basic requests immediately.
+        // In a real Antigravity IDE, this would spawn tasks and communicate via channels.
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(input) {
+            let id = json.get("id").cloned().unwrap_or(serde_json::Value::Null);
+            let method = json.get("method").and_then(|v| v.as_str()).unwrap_or("");
+            
+            let response = match method {
+                "ping" => serde_json::json!({"jsonrpc": "2.0", "id": id, "result": "pong"}),
+                "providers/list" => {
+                    match app.handle(AppCommand::ProvidersList).await {
+                        Ok(out) => {
+                            let val: serde_json::Value = serde_json::from_str(&out.render_json()).unwrap_or(serde_json::Value::Null);
+                            serde_json::json!({"jsonrpc": "2.0", "id": id, "result": val})
+                        },
+                        Err(e) => serde_json::json!({"jsonrpc": "2.0", "id": id, "error": e.to_string()})
+                    }
+                }
+                _ => serde_json::json!({"jsonrpc": "2.0", "id": id, "error": "method not found"})
+            };
+            
+            let mut out = serde_json::to_string(&response)?;
+            out.push('\n');
+            stdout.write_all(out.as_bytes()).await?;
+            stdout.flush().await?;
+        }
+    }
     Ok(())
 }
 
@@ -321,6 +379,7 @@ async fn run_repl(json: bool, jsonl: bool) -> anyhow::Result<()> {
                     stream: true,
                     auto_git: false,
                     plan_only: false,
+                    ide_context: None,
                 };
 
                 handle_repl_command(&app, AppCommand::Exec(exec_options), json, jsonl).await;
@@ -399,6 +458,7 @@ async fn run_repl_basic(json: bool, jsonl: bool) -> anyhow::Result<()> {
             stream: true,
             auto_git: false,
             plan_only: false,
+            ide_context: None,
         };
 
         handle_repl_command(&app, AppCommand::Exec(exec_options), json, jsonl).await;
@@ -540,8 +600,10 @@ fn map_command(cmd: Commands) -> AppCommand {
                 stream: !no_stream,
                 auto_git: git,
                 plan_only: plan,
+                ide_context: None,
             })
         }
+        Commands::Serve => unreachable!("Serve command handled in main"),
     }
 }
 

@@ -1,176 +1,146 @@
 # GemiClawDex (GCD)
 
-> **高效能終端 AI 編碼代理** — 融合 Gemini CLI、OpenAI Codex 與 Claude Code 的設計精髓，以 Rust 打造。
+> 用 Rust 從頭建構 AI coding agent，學會 Harness Engineering。
+>
+> *Learn Harness Engineering by building an AI coding agent from scratch in Rust.*
+>
+> **[English README](README.en.md)**
 
-## 特色
+<p align="center">
+  <a href="http://eric-lam.com/GemiClawDex/"><img src="https://img.shields.io/badge/教學網站-互動式文件-FFD700?style=for-the-badge" alt="Docs"></a>
+  <a href="https://github.com/voidful/GemiClawDex/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-green?style=for-the-badge" alt="License"></a>
+</p>
 
-- 🦀 **Rust 原生** — 編譯為單一二進位檔 `gcd`，啟動迅速、記憶體安全
-- 🤖 **Agent Loop** — 真正的 LLM 工具迴圈：送出 → 回覆 → 工具呼叫 → 執行 → 迴圈
-- 🔧 **11 個內建工具** — read_file, write_file, list_dir, shell, search_files, fetch_url, apply_patch, spawn_agent, memory, skill_manager, session_search
-- 🎯 **多供應商** — 同時支援 Gemini、OpenAI、Anthropic API（完整 Tool Calling）
-- 🛡️ **Sandbox 策略** — 四級安全模型：off / read-only / workspace-write / container
-- 🔒 **Permission Prompt** — 三級權限：suggest / auto-edit / full-auto（靈感來自 codex）
-- 📡 **Streaming 輸出** — Gemini SSE 串流，逐字輸出不再等待
-- 📊 **Token 追蹤** — 每次 session 自動追蹤 prompt/completion token 用量
-- 🧠 **Context Window 管理** — 對話過長時自動壓縮 (compact) 歷史訊息
-- 🔀 **Diff 預覽** — write_file 自動生成 unified diff，apply_patch 工具精準修改
-- 📝 **Session 持久化** — 自動保存對話歷史，支援 resume / fork
-- 🌐 **Web Fetch** — 內建 fetch_url 工具，直接在 agent 內抓取網頁內容
-- 🧩 **批次協調器** — `spawn_agent` 支援 `tasks[]`、依賴 DAG、ready batch 平行執行與阻塞傳播
-- 🔁 **Runtime 繼承** — sub-agent 會沿用父層 fallback providers、plugin tools 與協調上下文
-- 👀 **協調事件證據** — session / replay 可見 coordinator batch、delegated task lifecycle 與聚合結果
-- 🔄 **Git 整合** — `--git` 自動在 session 結束後 commit 變更
-- 📋 **Planning 輸出** — `--plan` 產生 execution plan 與 prompt 預覽，方便人工確認
-- 🧬 **雙重記憶系統** — MEMORY.md（環境知識）+ USER.md（使用者偏好），agent 可透過 `memory` 工具自主讀寫，含安全掃描防注入（Hermes-inspired）
-- 🎓 **技能學習迴圈** — `skill_manager` 工具讓 agent 在成功完成任務後自動建立可重用 skill，支援 create/edit/patch/delete（Hermes-inspired）
-- 🔍 **Session 搜尋** — `session_search` 工具搜尋過往對話紀錄，回溯類似問題的解法
-- 📑 **Progressive Skill Disclosure** — 技能支援 YAML frontmatter，三層漸進載入（metadata → full body → linked files），節省 token
-- 🛡️ **記憶安全掃描** — 寫入 MEMORY.md / USER.md / SKILL.md 前自動掃描 prompt injection 與 exfiltration pattern
-- 💻 **互動式 REPL** — rustyline 行編輯，支援歷史記錄、Ctrl+R 搜尋
+## 這個專案在做什麼
+
+你可能用過 Claude Code、Gemini CLI、OpenAI Codex 來寫程式。但你有沒有想過：**它們背後是怎麼運作的？**
+
+GCD 是一個用 Rust 寫的 AI coding agent。它不是要取代上面三個工具，而是把它們的設計精華拆開來，讓你透過閱讀原始碼和互動式文件，理解 AI 助手的「外殼」是怎麼做出來的。
+
+這層外殼叫做 **Harness**。它負責組合提示詞、管理工具、控制權限、記錄工作過程、對接不同的 AI 模型。AI 模型是引擎，Harness 是方向盤、煞車和儀表板。
+
+> **What is this?** GCD is a Rust-native AI coding agent that combines design patterns from Claude Code, Gemini CLI, and OpenAI Codex. It is a teaching project. Every design decision is traceable to its source, and every module maps to a chapter in the [interactive documentation](http://eric-lam.com/GemiClawDex/).
+
+## 為什麼在這裡學
+
+| 特點 | 說明 |
+|------|------|
+| **不是講解別人的產品** | GCD 本身就是產品，13,000+ 行 Rust 原始碼完全公開可讀 |
+| **不綁定單一廠商** | 同時支援 Gemini / OpenAI / Anthropic / OpenRouter / 本地模型 |
+| **融合三家設計** | 每個設計決策都標註來自哪個產品、為什麼這樣取捨 |
+| **有互動式教學網站** | 25+ 個主題章節，從入門到原始碼對照 |
+| **技能學習迴圈** | 參考 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的 skill 系統，agent 能從經驗中建立可重用技能 |
+| **雙重記憶系統** | MEMORY.md（環境知識）+ USER.md（使用者偏好），含安全掃描防注入 |
+
+## 教學網站
+
+🌐 **[eric-lam.com/GemiClawDex](http://eric-lam.com/GemiClawDex/)**
+
+不需要先會 Rust。文件本身就是獨立的 Harness Engineering 學習資源。
+
+### 學習路徑
+
+| 時間 | 路徑 | 適合誰 |
+|------|------|--------|
+| 3 分鐘 | 首頁 → 前言 → 入門範例 | 第一次接觸 agent 概念 |
+| 10 分鐘 | + 術語速查 → GCD 全景 | 想搞懂 prompt / context / harness 三者的差異 |
+| 30 分鐘 | + Pipeline → 各細節章節 | 想完整理解從輸入到執行的流程 |
+| 1 小時 | + 對照章 → 原始碼 | 準備動手改 code 或做自己的 agent |
+| 動手做 | AGENTS.md 工作坊 + 練習題 | 想為自己的專案寫 harness |
+
+## 從哪個產品學了什麼
+
+| 來源 | 學到的設計 | 對應原始碼 |
+|------|-----------|-----------|
+| **Claude Code** | Prompt 組裝、Tool trait、Trust 邊界、Skill 系統 | `prompt.rs`, `tools.rs`, `trust.rs`, `skills.rs` |
+| **Gemini CLI** | Terminal-first REPL、MCP 客戶端、Token Caching、Streaming | `main.rs`, `mcp.rs`, `cache.rs`, `output.rs` |
+| **OpenAI Codex** | Sandbox 分級、Permission 三級制、apply-patch | `tools/container.rs`, `agent/permissions.rs`, `tools/apply_patch.rs` |
+| **Hermes Agent** | 技能學習迴圈、雙重記憶、記憶安全掃描、Session 搜尋 | `skills.rs`, `tools/memory_tool.rs`, `tools/skill_manager.rs` |
 
 ## 快速開始
 
 ```bash
 # 編譯
+git clone https://github.com/voidful/GemiClawDex.git && cd GemiClawDex
 cargo build --release
 
-# 互動模式（直接啟動 REPL）
+# 設定 API 金鑰（至少一個）
+export GEMINI_API_KEY="AIza..."      # 免費額度最高
+
+# 啟動互動式 REPL
 ./target/release/gcd
 
-# 執行單次任務
+# 或執行單次任務
 gcd exec "解釋這個 codebase 的架構"
-
-# 指定供應商
-gcd exec --provider gemini-env "寫一個測試"
-
-# 使用 suggest 權限（寫入前需確認）
-gcd exec --permission suggest "重構這個函數"
-
-# 全自動模式
-gcd exec --permission full-auto "修復所有編譯錯誤"
-
-# 執行後自動 git commit
-gcd exec --git "加入錯誤處理"
-
-# 規劃模式：先產生 execution plan
-gcd exec --plan "重新設計模組架構"
-
-# 禁用 streaming
-gcd exec --no-stream "列出所有 TODO"
-
-# 檢視工作區概述
-gcd overview
-
-# 管理供應商
-gcd providers list
-gcd providers doctor
-
-# JSON 輸出
-gcd overview --json
 ```
 
-## 環境變數
-
-| 變數 | 說明 |
-|------|------|
-| `GEMINI_API_KEY` | Google Gemini API 金鑰 |
-| `OPENAI_API_KEY` | OpenAI API 金鑰 |
-| `ANTHROPIC_API_KEY` | Anthropic API 金鑰 |
-| `GCD_PROVIDER` | 預設供應商 ID |
-| `GCD_SANDBOX` | 預設 sandbox 策略 |
-
-## Multi-Agent 協調補強
-
-參考 [open-multi-agent](https://github.com/JackChen-me/open-multi-agent) 後，GCD 的 `spawn_agent` 不再只是單一子任務委派，而是可以在同一個工具呼叫裡處理一組帶依賴的工作：
-
-```json
-{
-  "tasks": [
-    { "name": "scan", "task": "掃描目前模組缺口並列出要改的檔案" },
-    { "name": "design", "task": "提出最小可行設計", "depends_on": ["scan"] },
-    { "name": "implement", "task": "依設計實作變更", "depends_on": ["design"] },
-    { "name": "review", "task": "檢查回歸風險與測試缺口", "depends_on": ["implement"] }
-  ],
-  "strategy": "parallel",
-  "max_concurrency": 2,
-  "shared_context": "保持 core crate 輕量、不要引入不必要依賴"
-}
-```
-
-這個協調器現在具備：
-
-- 依賴驗證與 cycle detection
-- ready task batch 的平行執行
-- failed / blocked task 的明確狀態回傳
-- 聚合 token usage 與子任務摘要
-- 繼承父層 fallback provider、plugin tools、sandbox / permission 與上層 prompt context
-- 在 `sessions replay` / JSONL 事件流中留下 coordinator started / batch started / task started / task blocked / task completed / coordinator completed 證據
+更多用法請參考教學網站的[安裝指南](http://eric-lam.com/GemiClawDex/)和[互動模式指南](http://eric-lam.com/GemiClawDex/)。
 
 ## 架構
 
 ```
 crates/
-├── gcd-core/      # 核心邏輯庫
-│   ├── agent.rs   # Agent 執行迴圈
-│   │              #   ├─ Permission Prompt (3-level)
-│   │              #   ├─ Streaming (Gemini SSE)
-│   │              #   ├─ Context Window 管理 (auto-compact)
-│   │              #   ├─ Token 用量追蹤
-│   │              #   ├─ Git 自動 commit
-│   │              #   ├─ Planning 模式
-│   │              #   └─ Memory 系統
-│   ├── tools.rs   # Tool trait + 11 個內建工具
-│   │              #   ├─ read_file, write_file (含 diff 預覽)
-│   │              #   ├─ list_dir, shell (10KB 輸出截斷)
-│   │              #   ├─ search_files (rg/grep)
-│   │              #   ├─ fetch_url (web 抓取)
-│   │              #   ├─ apply_patch (unified diff 修補)
-│   │              #   ├─ spawn_agent (coordinator 子任務委派)
-│   │              #   ├─ memory (雙重記憶: MEMORY.md + USER.md)
-│   │              #   ├─ skill_manager (技能學習迴圈: create/edit/patch/delete)
-│   │              #   └─ session_search (過往對話搜尋)
-│   ├── providers.rs   # 多供應商管理
-│   │                  #   ├─ Gemini (完整 functionCall)
-│   │                  #   ├─ OpenAI (完整 tool_calls)
-│   │                  #   └─ Anthropic (完整 tool_use)
+├── gcd-core/          # 核心邏輯庫（~12,000 行）
+│   ├── agent.rs       # Agent 執行迴圈 + Permission + Streaming + Memory
+│   ├── tools/         # 11 個內建工具 + coordinator（930 行 DAG 排程）
+│   ├── providers.rs   # 多供應商管理（Gemini / OpenAI / Anthropic）
 │   ├── prompt.rs      # Prompt 組裝引擎
 │   ├── session.rs     # Session 持久化
-│   ├── trust.rs       # 工作區信任邊界
-│   ├── config.rs      # 路徑檢測與偏好設定
-│   ├── commands.rs    # 自訂命令
-│   ├── skills.rs      # 技能系統 (SKILL.md + YAML frontmatter + progressive disclosure)
-│   ├── hooks.rs       # PreToolUse / PostToolUse 生命週期鉤子
-│   ├── plugins.rs     # Plugin JSON 工具擴充
-│   ├── mcp.rs         # MCP (Model Context Protocol) Client
-│   ├── app.rs         # 命令路由 facade
-│   ├── output.rs      # 輸出渲染
-│   ├── workspace.rs   # 工作區探測
-│   ├── cache.rs       # Token cache (hash-based, TTL 過期)
-│   ├── worktree.rs    # Git worktree 執行隔離
-│   └── instructions.rs # AGENTS.md / GEMINI.md / CLAUDE.md / GCD.md 載入
-├── gcd-cli/       # CLI 入口 → 二進位名稱: gcd
-│   └── main.rs    # clap 4 + rustyline REPL + colored 輸出
+│   ├── trust.rs       # 三級信任模型
+│   ├── skills.rs      # 技能系統 + YAML frontmatter + Progressive Disclosure
+│   ├── mcp.rs         # MCP 客戶端
+│   └── hooks.rs       # PreToolUse / PostToolUse 生命週期鉤子
+├── gcd-cli/           # CLI 入口
+│   └── main.rs        # clap 4 + rustyline REPL
+```
+
+## 內建技能
+
+`.gcd/skills/` 目錄包含可重用的 agent 技能（YAML frontmatter 格式，與 Hermes Agent 相容）：
+
+```
+.gcd/skills/
+├── code-review/SKILL.md           # 程式碼審查
+├── systematic-debugging/SKILL.md  # 系統化除錯（四階段根因分析）
+├── tdd/SKILL.md                   # 測試驅動開發（RED-GREEN-REFACTOR）
+├── writing-plans/SKILL.md         # 實作計畫撰寫
+├── security-audit/SKILL.md        # 安全性審計
+├── refactoring/SKILL.md           # 重構指南
+├── documentation-review/SKILL.md  # 文件審查（文實相符檢查）
+├── git-workflow/SKILL.md          # Git 工作流（原子 commit）
+├── performance-analysis/SKILL.md  # 效能分析（含 token 效率）
+└── architecture-review/SKILL.md   # 架構審查（依賴方向、層次違反）
 ```
 
 ## Permission 模型
 
 | 等級 | write_file | shell | apply_patch | 說明 |
-|------|-----------|-------|-------------|------|
-| `suggest` | ⚠️ 需確認 | ⚠️ 需確認 | ⚠️ 需確認 | 最安全，適合不熟悉的 codebase |
-| `auto-edit` | ✅ 自動 | ⚠️ 需確認 | ⚠️ 需確認 | 預設值，寫檔自動但 shell 需批准 |
-| `full-auto` | ✅ 自動 | ✅ 自動 | ✅ 自動 | 完全自動，僅限信任的工作區 |
+|------|------------|-------|-------------|------|
+| `suggest` | ⚠️ 需確認 | ⚠️ 需確認 | ⚠️ 需確認 | 最安全 |
+| `auto-edit` | ✅ 自動 | ⚠️ 需確認 | ⚠️ 需確認 | 預設值 |
+| `full-auto` | ✅ 自動 | ✅ 自動 | ✅ 自動 | 僅限信任環境 |
 
 ## 設計靈感
 
 | 來源 | 採納特性 |
-|------|----------|
-| [gemini-cli](https://github.com/google-gemini/gemini-cli) | REPL 互動、Streaming、MCP、Token Caching |
-| [openai/codex](https://github.com/openai/codex) | Sandbox 分級、Permission 模型、apply-patch |
+|------|---------|
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | REPL 互動、Streaming、MCP、Token Caching |
+| [OpenAI Codex](https://github.com/openai/codex) | Sandbox 分級、Permission 模型、apply-patch |
 | [Claude Code](https://github.com/roger2ai/Claude-Code-Compiled) | Trust 邊界、Session 分支、Skill 系統 |
-| [claurst](https://github.com/Kuberwastaken/claurst) | Rust 重寫方法論、Dream 記憶系統、Coordinator |
-| [open-agent-sdk](https://github.com/codeany-ai/open-agent-sdk-typescript) | Agent SDK 抽象層設計 |
-| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 技能學習迴圈、雙重記憶系統、記憶安全掃描、Session 搜尋、Progressive Skill Disclosure |
+| [Hermes Agent](https://github.com/NousResearch/hermes-agent) | 技能學習迴圈、雙重記憶、記憶安全掃描、Session 搜尋、Progressive Skill Disclosure |
+
+## 參考資源
+
+- [Martin Fowler — Harness Engineering](https://martinfowler.com/articles/harness-engineering.html)
+- [Anthropic — Effective harnesses for long-running agents](https://docs.anthropic.com)
+- [OpenAI — Harness engineering: leveraging Codex](https://openai.com)
 
 ## 授權
 
 Apache-2.0
+
+---
+
+<p align="center">
+  <sub>Built as a teaching project by <a href="https://github.com/voidful">@voidful</a>. 不是要取代 Claude Code / Gemini CLI / Codex，而是要讓你搞懂它們。</sub>
+</p>

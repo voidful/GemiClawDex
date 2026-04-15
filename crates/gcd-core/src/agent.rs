@@ -21,7 +21,7 @@ use runtime_support::{
 };
 
 pub use types::{
-    AgentEvent, AgentMessage, AgentRunOptions, AgentRunResult, PermissionLevel, TokenUsage,
+    AgentEvent, AgentMessage, AgentRunOptions, AgentRunResult, IdeContext, PermissionLevel, TokenUsage,
     ToolCall, ToolInvocationRecord,
 };
 
@@ -161,7 +161,11 @@ pub async fn run_agent(
                     arguments: call.arguments.clone(),
                 });
                 if needs_confirmation(&call.name, &options.permission) {
-                    let (allowed, upgrade) = check_always_upgrade(call);
+                    let (allowed, upgrade) = if let Some(handler) = &options.approval_handler {
+                        handler.request_approval(call).await
+                    } else {
+                        check_always_upgrade(call)
+                    };
                     if upgrade {
                         options.permission = PermissionLevel::FullAuto;
                     }

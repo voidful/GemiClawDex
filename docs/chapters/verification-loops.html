@@ -1,0 +1,147 @@
+<div class="chapter-header">
+    <span class="chapter-number">補充章</span>
+    <h1>驗證迴圈 — 讓 Agent 自己檢查自己的工作</h1>
+    <p class="chapter-desc">生產級 harness 的核心 pattern：反覆執行直到通過驗證。對照 GCD 的 coordinator 和 Hermes Agent 的 delegate_tool。</p>
+</div>
+
+<div class="content-body">
+    <div class="callout callout-info revealable">
+        <div class="callout-title">一句話解釋</div>
+        <p>AI 模型會犯錯。Harness 的責任不是讓模型不犯錯，而是<strong>偵測到錯誤後自動重試</strong>。這個「執行 → 檢查 → 重試」的迴圈，就是驗證迴圈。</p>
+    </div>
+
+    <h2>為什麼一次性生成不夠</h2>
+    <p>即使是最強的模型，單次生成的成功率也不是 100%。但如果你讓模型嘗試三次，每次都檢查結果，總成功率會大幅提高。這不是理論，是 OpenAI 和 Anthropic 在 2026 年公開分享的工程經驗。</p>
+
+    <p>OpenAI 把這個 pattern 叫做 <strong>Ralph Wiggum Loop</strong>：一個 bash 腳本反覆啟動 AI agent，每次都給它全新的 context，直到所有任務通過驗證。名字來自辛普森家庭的角色，意思是「即使是不太聰明的 agent，只要有好的迴圈，也能完成工作」。</p>
+
+    <h2>GCD 的 Coordinator 怎麼做</h2>
+    <p>GCD 的 <code>spawn_agent</code> 工具支援帶依賴的任務批次，由 <code>tools/coordinator.rs</code>（932 行）實作。這就是 GCD 版本的驗證迴圈。</p>
+
+    <div class="code-window revealable">
+        <div class="window-header">
+            <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+            <span class="window-title">spawn_agent 任務批次範例</span>
+        </div>
+        <div class="window-body">
+<pre><code class="language-json">{
+  "tasks": [
+    { "name": "scan", "task": "掃描模組缺口並列出要改的檔案" },
+    { "name": "design", "task": "提出最小可行設計", "depends_on": ["scan"] },
+    { "name": "implement", "task": "依設計實作變更", "depends_on": ["design"] },
+    { "name": "review", "task": "檢查回歸風險與測試缺口", "depends_on": ["implement"] }
+  ],
+  "strategy": "parallel",
+  "max_concurrency": 2
+}</code></pre>
+        </div>
+    </div>
+
+    <p>Coordinator 的關鍵能力：</p>
+    <div class="feature-grid">
+        <div class="feature-card revealable">
+            <div class="feature-num">1</div>
+            <h3>依賴驗證</h3>
+            <p>每個 task 可以聲明 <code>depends_on</code>。Coordinator 會驗證依賴圖，偵測循環依賴。</p>
+        </div>
+        <div class="feature-card revealable">
+            <div class="feature-num">2</div>
+            <h3>Ready Batch 平行執行</h3>
+            <p>沒有未完成依賴的任務會被分成一批同時執行，受 <code>max_concurrency</code> 限制。</p>
+        </div>
+        <div class="feature-card revealable">
+            <div class="feature-num">3</div>
+            <h3>失敗傳播</h3>
+            <p>如果一個 task 失敗，依賴它的所有下游 task 會被標記為 blocked，不會浪費 token 嘗試。</p>
+        </div>
+        <div class="feature-card revealable">
+            <div class="feature-num">4</div>
+            <h3>事件證據</h3>
+            <p>每個 coordinator 事件（started, batch started, task completed, blocked）都會記錄在 session JSONL 裡，可以用 <code>sessions replay</code> 回放。</p>
+        </div>
+    </div>
+
+    <div class="source-ref"><strong>原始碼</strong>：<code>crates/gcd-core/src/tools/coordinator.rs</code></div>
+
+    <h2>Anthropic 的三層架構</h2>
+    <p>Anthropic 在 2026 年公開了一個更精緻的架構，靈感來自 GAN（生成對抗網路）：</p>
+
+    <div class="pipeline">
+        <div class="pipeline-step revealable">
+            <div class="pipeline-num">P</div>
+            <div class="pipeline-content"><strong>Planner</strong> — 把大任務拆成小步驟，產出 feature list。</div>
+        </div>
+        <div class="pipeline-step revealable">
+            <div class="pipeline-num">G</div>
+            <div class="pipeline-content"><strong>Generator</strong> — 執行每個步驟，產出程式碼。</div>
+        </div>
+        <div class="pipeline-step revealable">
+            <div class="pipeline-num">E</div>
+            <div class="pipeline-content"><strong>Evaluator</strong> — 檢查 Generator 的輸出，決定是否通過。不通過就回到 Generator。</div>
+        </div>
+    </div>
+
+    <p>GCD 的 coordinator 可以模擬這個架構：scan = Planner，implement = Generator，review = Evaluator。差異在於 GCD 的 review task 目前是單次執行，不會自動觸發 re-implementation。</p>
+
+    <h2>Hermes Agent 的做法</h2>
+    <p>Hermes Agent 的 <code>delegate_tool.py</code>（46K 行）和 <code>subagent-driven-development</code> skill 實作了更完整的版本：</p>
+    <ul>
+        <li>每個 subagent 都有全新的 context（避免前一個 task 的 context 污染）</li>
+        <li>兩階段 review：先檢查 spec compliance，再檢查 code quality</li>
+        <li>自動修復迴圈：review 不通過 → 修正 → 再 review</li>
+    </ul>
+
+    <h2>自己設計驗證迴圈的思考框架</h2>
+    <div class="comparison-table">
+        <table>
+            <thead>
+                <tr><th>問題</th><th>你的回答決定了迴圈的設計</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>什麼算「通過」？</td>
+                    <td>測試通過？Lint 清零？LLM-as-judge 給分 ≥ 8？人類確認？</td>
+                </tr>
+                <tr>
+                    <td>什麼時候該放棄重試？</td>
+                    <td>最多重試 N 次？超過 token 預算？連續失敗 pattern 相同？</td>
+                </tr>
+                <tr>
+                    <td>每次重試要給什麼 context？</td>
+                    <td>上次的錯誤訊息？全新 context？壓縮後的歷史？</td>
+                </tr>
+                <tr>
+                    <td>用 Computational 還是 Inferential sensor？</td>
+                    <td>測試套件（computational）便宜但只能檢查已知行為。LLM-as-judge（inferential）能發現未預期的問題但成本高。</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Fowler 的 Guides vs Sensors 四象限</h2>
+    <p>把 GCD 的組件放進 Martin Fowler 的分類，會長這樣：</p>
+    <div class="comparison-table">
+        <table>
+            <thead>
+                <tr><th></th><th>Guide（引導行為）</th><th>Sensor（檢查輸出）</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Computational</strong></td>
+                    <td><code>cargo clippy</code>（linter）、Cargo.toml 的依賴限制</td>
+                    <td><code>cargo test</code>（test suite）、CI pipeline</td>
+                </tr>
+                <tr>
+                    <td><strong>Inferential</strong></td>
+                    <td>AGENTS.md、MEMORY.md、Skill descriptions</td>
+                    <td>coordinator 的 review task、session_search 回溯</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="chapter-nav">
+    <button class="btn btn-outline" onclick="navigateTo('agents-md-workshop')">← AGENTS.md 工作坊</button>
+    <button class="btn btn-primary" onclick="navigateTo('eval-observability')">評估與可觀測性 →</button>
+</div>
